@@ -219,7 +219,7 @@ message VolumeSpec {
   // SnapshotSchedule 
   string snapshot_schedule = 15;
   // MaxCloudsnaps 
-  string max_cloudsnaps = 16;
+  uint32 max_cloudsnaps = 16;
   // CloudsnapSchedule 
   string cloudsnap_schedule = 17;
 }
