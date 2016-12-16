@@ -218,6 +218,10 @@ message VolumeSpec {
   string passphrase = 14;
   // SnapshotSchedule 
   string snapshot_schedule = 15;
+  // MaxCloudsnaps 
+  string max_cloudsnaps = 16;
+  // CloudsnapSchedule 
+  string cloudsnap_schedule = 17;
 }
 
 // Set of machine IDs (nodes) to which part of this volume is erasure coded - for clustered storage arrays
