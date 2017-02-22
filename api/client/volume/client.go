@@ -205,11 +205,20 @@ func (v *volumeClient) Stats(
 	req := v.c.Get().Resource(volumePath + "/stats").Instance(volumeID)
 	req.QueryOption(api.OptCumulative, strconv.FormatBool(cumulative))
 
-	if err := req.Do().Unmarshal(stats); err != nil {
-		return nil, err
-	}
+	err := req.Do().Unmarshal(stats)
+	return stats, err
 
-	return stats, nil
+}
+
+// UsedSize returns allocated volume size.
+// Errors ErrEnoEnt may be returned
+func (v *volumeClient) UsedSize(
+	volumeID string,
+) (uint64, error) {
+	var usedSize uint64
+	req := v.c.Get().Resource(volumePath + "/usedsize").Instance(volumeID)
+	err := req.Do().Unmarshal(&usedSize)
+	return usedSize, err
 }
 
 // Alerts on this volume.
@@ -289,13 +298,14 @@ func (v *volumeClient) SnapEnumerate(ids []string,
 // Attach map device to the host.
 // On success the devicePath specifies location where the device is exported
 // Errors ErrEnoEnt, ErrVolAttached may be returned.
-func (v *volumeClient) Attach(volumeID string) (string, error) {
+func (v *volumeClient) Attach(volumeID string, attachOptions map[string]string) (string, error) {
 	response, err := v.doVolumeSetGetResponse(
 		volumeID,
 		&api.VolumeSetRequest{
 			Action: &api.VolumeStateAction{
 				Attach: api.VolumeActionParam_VOLUME_ACTION_PARAM_ON,
 			},
+			Options: attachOptions,
 		},
 	)
 	if err != nil {
@@ -322,6 +332,10 @@ func (v *volumeClient) Detach(volumeID string) error {
 			},
 		},
 	)
+}
+
+func (v *volumeClient) MountedAt(mountPath string) string {
+	return ""
 }
 
 // Mount volume at specified path

@@ -231,14 +231,13 @@ func start(c *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("Unable to find cluster instance: %v", err)
 		}
-		if err := cm.Start(); err != nil {
+		if err := cm.Start(0, false); err != nil {
 			return fmt.Errorf("Unable to start cluster manager: %v", err)
 		}
 	}
 
 	// Daemon does not exit.
 	select {}
-	return nil
 }
 
 func showVersion(c *cli.Context) error {

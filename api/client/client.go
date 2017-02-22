@@ -28,11 +28,13 @@ func NewClient(host string, version string) (*Client, error) {
 	c := &Client{
 		base:       baseURL,
 		version:    version,
-		httpClient: getHttpClient(host),
+		httpClient: getHTTPClient(host),
 	}
 	return c, nil
 }
 
+// GetUnixServerPath returns a unix domain socket prepended with the
+// provided path.
 func GetUnixServerPath(socketName string, paths ...string) string {
 	serverPath := "unix://"
 	for _, path := range paths {
@@ -41,7 +43,6 @@ func GetUnixServerPath(socketName string, paths ...string) string {
 	serverPath = serverPath + socketName + ".sock"
 	return serverPath
 }
-
 
 // Client is an HTTP REST wrapper. Use one of Get/Post/Put/Delete to get a request
 // object.
@@ -58,7 +59,7 @@ func (c *Client) Status() (*Status, error) {
 	return status, err
 }
 
-// Version send a request at the /versions REST endpoint.
+// Versions send a request at the /versions REST endpoint.
 func (c *Client) Versions(endpoint string) ([]string, error) {
 	versions := []string{}
 	err := c.Get().Resource(endpoint + "/versions").Do().Unmarshal(&versions)
@@ -80,7 +81,7 @@ func (c *Client) Put() *Request {
 	return NewRequest(c.httpClient, c.base, "PUT", c.version)
 }
 
-// Put returns a Request object setup for DELETE call.
+// Delete returns a Request object setup for DELETE call.
 func (c *Client) Delete() *Request {
 	return NewRequest(c.httpClient, c.base, "DELETE", c.version)
 }
@@ -117,7 +118,7 @@ func newHTTPClient(u *url.URL, tlsConfig *tls.Config, timeout time.Duration) *ht
 	return &http.Client{Transport: httpTransport}
 }
 
-func getHttpClient(host string) *http.Client {
+func getHTTPClient(host string) *http.Client {
 	c, ok := httpCache[host]
 	if !ok {
 		cacheLock.Lock()

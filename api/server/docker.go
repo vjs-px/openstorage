@@ -7,16 +7,11 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"regexp"
-	"strconv"
-	"strings"
-
-	"go.pedge.io/dlog"
 
 	"github.com/libopenstorage/openstorage/api"
-	"github.com/libopenstorage/openstorage/pkg/units"
-	"github.com/libopenstorage/openstorage/volume"
+	"github.com/libopenstorage/openstorage/api/spec"
 	"github.com/libopenstorage/openstorage/config"
+	"github.com/libopenstorage/openstorage/volume"
 	"github.com/libopenstorage/openstorage/volume/drivers"
 )
 
@@ -25,20 +20,10 @@ const (
 	VolumeDriver = "VolumeDriver"
 )
 
-var (
-	nameRegex       = regexp.MustCompile("name=([0-9A-Za-z]+),?")
-	sizeRegex       = regexp.MustCompile("size=([0-9A-Za-z]+),?")
-	fsRegex         = regexp.MustCompile("fs=([0-9A-Za-z]+),?")
-	bsRegex         = regexp.MustCompile("bs=([0-9]+),?")
-	haRegex         = regexp.MustCompile("ha=([0-9]+),?")
-	cosRegex        = regexp.MustCompile("cos=([A-Za-z]+),?")
-	sharedRegex     = regexp.MustCompile("shared=([A-Za-z]+),?")
-	passphraseRegex = regexp.MustCompile("passphrase=([0-9A-Za-z_@./#&+-]+),?")
-)
-
 // Implementation of the Docker volumes plugin specification.
 type driver struct {
 	restBase
+	spec.SpecHandler
 }
 
 type handshakeResp struct {
@@ -78,7 +63,7 @@ type capabilitiesResponse struct {
 }
 
 func newVolumePlugin(name string) restServer {
-	return &driver{restBase{name: name, version: "0.3"}}
+	return &driver{restBase{name: name, version: "0.3"}, spec.NewSpecHandler()}
 }
 
 func (d *driver) String() string {
@@ -103,16 +88,16 @@ func (d *driver) volNotMounted(request string, id string) error {
 
 func (d *driver) Routes() []*Route {
 	return []*Route{
-		&Route{verb: "POST", path: volDriverPath("Create"), fn: d.create},
-		&Route{verb: "POST", path: volDriverPath("Remove"), fn: d.remove},
-		&Route{verb: "POST", path: volDriverPath("Mount"), fn: d.mount},
-		&Route{verb: "POST", path: volDriverPath("Path"), fn: d.path},
-		&Route{verb: "POST", path: volDriverPath("List"), fn: d.list},
-		&Route{verb: "POST", path: volDriverPath("Get"), fn: d.get},
-		&Route{verb: "POST", path: volDriverPath("Unmount"), fn: d.unmount},
-		&Route{verb: "POST", path: volDriverPath("Capabilities"), fn: d.capabilities},
-		&Route{verb: "POST", path: "/Plugin.Activate", fn: d.handshake},
-		&Route{verb: "GET", path: "/status", fn: d.status},
+		{verb: "POST", path: volDriverPath("Create"), fn: d.create},
+		{verb: "POST", path: volDriverPath("Remove"), fn: d.remove},
+		{verb: "POST", path: volDriverPath("Mount"), fn: d.mount},
+		{verb: "POST", path: volDriverPath("Path"), fn: d.path},
+		{verb: "POST", path: volDriverPath("List"), fn: d.list},
+		{verb: "POST", path: volDriverPath("Get"), fn: d.get},
+		{verb: "POST", path: volDriverPath("Unmount"), fn: d.unmount},
+		{verb: "POST", path: volDriverPath("Capabilities"), fn: d.capabilities},
+		{verb: "POST", path: "/Plugin.Activate", fn: d.handshake},
+		{verb: "GET", path: "/status", fn: d.status},
 	}
 }
 
@@ -178,147 +163,8 @@ func (d *driver) status(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, fmt.Sprintln("osd plugin", d.version))
 }
 
-func (d *driver) cosLevel(cos string) (uint32, error) {
-	switch cos {
-	case "high", "3":
-		return uint32(api.CosType_HIGH), nil
-	case "medium", "2":
-		return uint32(api.CosType_MEDIUM), nil
-	case "low", "1", "":
-		return uint32(api.CosType_LOW), nil
-	}
-	return uint32(api.CosType_LOW),
-		fmt.Errorf("Cos must be one of %q | %q | %q", "high", "medium", "low")
-
-}
-
-func (d *driver) specFromOpts(
-	Opts map[string]string,
-) (*api.VolumeSpec, error) {
-	spec := api.VolumeSpec{
-		VolumeLabels: make(map[string]string),
-		Format:       api.FSType_FS_TYPE_EXT4,
-		HaLevel:      1,
-	}
-
-	for k, v := range Opts {
-		switch k {
-		case api.SpecEphemeral:
-			spec.Ephemeral, _ = strconv.ParseBool(v)
-		case api.SpecSize:
-			if size, err := units.Parse(v); err != nil {
-				return nil, err
-			} else {
-				spec.Size = uint64(size)
-			}
-		case api.SpecFilesystem:
-			if value, err := api.FSTypeSimpleValueOf(v); err != nil {
-				return nil, err
-			} else {
-				spec.Format = value
-			}
-		case api.SpecBlockSize:
-			if blockSize, err := units.Parse(v); err != nil {
-				return nil, err
-			} else {
-				spec.BlockSize = blockSize
-			}
-		case api.SpecHaLevel:
-			haLevel, _ := strconv.ParseInt(v, 10, 64)
-			spec.HaLevel = haLevel
-		case api.SpecPriority:
-			cos, _ := api.CosTypeSimpleValueOf(v)
-			spec.Cos = cos
-		case api.SpecDedupe:
-			spec.Dedupe, _ = strconv.ParseBool(v)
-		case api.SpecSnapshotInterval:
-			snapshotInterval, _ := strconv.ParseUint(v, 10, 32)
-			spec.SnapshotInterval = uint32(snapshotInterval)
-		case api.SpecShared:
-			if shared, err := strconv.ParseBool(v); err != nil {
-				return nil, err
-			} else {
-				spec.Shared = shared
-			}
-		default:
-			spec.VolumeLabels[k] = v
-		}
-	}
-	return &spec, nil
-}
-
-func (d *driver) getVal(r *regexp.Regexp, str string) (bool, string) {
-	found := r.FindString(str)
-	if found == "" {
-		return false, ""
-	}
-
-	submatches := r.FindStringSubmatch(str)
-	if len(submatches) < 2 {
-		return false, ""
-	}
-
-	val := submatches[1]
-
-	return true, val
-}
-
-func (d *driver) specFromString(
-	str string,
-) (bool, *api.VolumeSpec, string) {
-	name := ""
-	spec := api.VolumeSpec{
-		VolumeLabels: make(map[string]string),
-		Format:       api.FSType_FS_TYPE_EXT4,
-		HaLevel:      1,
-	}
-
-	ok, name := d.getVal(nameRegex, str)
-	if !ok {
-		return false, &spec, str
-	}
-
-	dlog.Infof("Parsing inline spec for volume %v", name)
-
-	if ok, sz := d.getVal(sizeRegex, str); ok {
-		size, _ := units.Parse(sz)
-		spec.Size = uint64(size)
-	}
-
-	if ok, fs := d.getVal(fsRegex, str); ok {
-		spec.Format, _ = api.FSTypeSimpleValueOf(fs)
-	}
-
-	if ok, bs := d.getVal(bsRegex, str); ok {
-		val, _ := strconv.Atoi(bs)
-		spec.BlockSize = int64(val)
-	}
-
-	if ok, ha := d.getVal(haRegex, str); ok {
-		val, _ := strconv.Atoi(ha)
-		spec.HaLevel = int64(val)
-	}
-
-	if ok, cos := d.getVal(cosRegex, str); ok {
-		spec.Cos, _ = api.CosTypeSimpleValueOf(cos)
-	}
-
-	if ok, shared := d.getVal(sharedRegex, str); ok {
-		if strings.EqualFold(shared, "true") {
-			spec.Shared = true
-		}
-	}
-
-	if ok, passphrase := d.getVal(passphraseRegex, str); ok {
-		spec.Encrypted = true
-		spec.Passphrase = passphrase
-	}
-
-	return true, &spec, name
-}
-
-func (d *driver) mountpath(request *mountRequest) string {
-	return path.Join(volume.MountBase, request.Name)
+func (d *driver) mountpath(name string) string {
+	return path.Join(volume.MountBase, name)
 }
 
 func (d *driver) create(w http.ResponseWriter, r *http.Request) {
@@ -328,11 +174,7 @@ func (d *driver) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse options from the name - If the scheduler was unable to pass in
-	// the volume spec via the API, we allow the spec to be passed in
-	// via the name in the format: "key=value;key=value;name=volname"
-	specParsed, spec, name := d.specFromString(request.Name)
-
+	specParsed, spec, name := d.SpecFromString(request.Name)
 	d.logRequest(method, name).Infoln("")
 	// If we fail to find the volume, create it.
 	if _, err = d.volFromName(name); err != nil {
@@ -343,7 +185,7 @@ func (d *driver) create(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !specParsed {
-			spec, err = d.specFromOpts(request.Opts)
+			spec, err = d.SpecFromOpts(request.Opts)
 			if err != nil {
 				d.errorResponse(w, err)
 				return
@@ -375,11 +217,159 @@ func (d *driver) remove(w http.ResponseWriter, r *http.Request) {
 		d.errorResponse(w, err)
 		return
 	}
-	if err = v.Delete(request.Name); err != nil {
+
+	_, _, name := d.SpecFromString(request.Name)
+
+	if err = v.Delete(name); err != nil {
 		d.errorResponse(w, err)
 		return
 	}
 	json.NewEncoder(w).Encode(&volumeResponse{})
+}
+
+func (d *driver) scaleUp(
+	method string,
+	vd volume.VolumeDriver,
+	inVol *api.Volume,
+	allVols []*api.Volume,
+	attachOptions map[string]string,
+) (
+	outVol *api.Volume,
+	err error,
+) {
+	// Try to attach existing volumes.
+	for _, outVol := range allVols {
+		if _, err = vd.Attach(outVol.Id, attachOptions); err == nil {
+			return outVol, nil
+		}
+	}
+
+	// Create new volume if existing volumes are not available.
+	spec := inVol.Spec.Copy()
+	spec.Scale = 1
+	spec.ReplicaSet = nil
+	volCount := len(allVols)
+	for i := len(allVols); volCount < int(inVol.Spec.Scale); i++ {
+		name := fmt.Sprintf("%s_%03d", inVol.Locator.Name, i)
+		id := ""
+		if id, err = vd.Create(
+			&api.VolumeLocator{Name: name},
+			nil,
+			spec,
+		); err != nil {
+			// It is possible to get an error on a name conflict
+			// either due to concurrent creates or holes punched in
+			// from previous deletes.
+			if err == volume.ErrExist {
+				continue
+			}
+			return nil, err
+		}
+		if outVol, err = d.volFromName(id); err != nil {
+			return nil, err
+		}
+		if _, err = vd.Attach(outVol.Id, attachOptions); err == nil {
+			return outVol, nil
+		}
+		// If we fail to attach the volume, continue to look for a
+		// free volume.
+		volCount++
+	}
+	return nil, volume.ErrVolAttachedScale
+}
+
+func (d *driver) attachScale(
+	method string,
+	vd volume.VolumeDriver,
+	inVol *api.Volume,
+	attachOptions map[string]string,
+) (
+	*api.Volume,
+	error,
+) {
+	// Find a volume that has data local to this node.
+	vols, err := vd.Enumerate(
+		&api.VolumeLocator{
+			Name: fmt.Sprintf("%s.*", inVol.Locator.Name),
+			VolumeLabels: map[string]string{
+				volume.LocationConstraint: volume.LocalNode,
+			},
+		},
+		nil,
+	)
+	// Try to attach local volumes.
+	if err == nil {
+		for _, vol := range vols {
+			if v, err := d.attachVol(method, vd, vol, attachOptions); err == nil {
+				return v, nil
+			}
+		}
+	}
+	// Create a new local volume if we fail to attach existing local volume
+	// or if none exist.
+	allVols, err := vd.Enumerate(
+		&api.VolumeLocator{
+			Name: fmt.Sprintf("%s.*", inVol.Locator.Name),
+		},
+		nil,
+	)
+	if len(allVols) < int(inVol.Spec.Scale) {
+		name := fmt.Sprintf("%s_%03d", inVol.Locator.Name, len(allVols))
+		spec := inVol.Spec.Copy()
+		spec.ReplicaSet = &api.ReplicaSet{Nodes: []string{volume.LocalNode}}
+		id, err := vd.Create(&api.VolumeLocator{Name: name}, nil, spec)
+		if err != nil {
+			return d.scaleUp(method, vd, inVol, allVols, attachOptions)
+		}
+		outVol, err := d.volFromName(id)
+		if err != nil {
+			return nil, err
+		}
+		if _, err = vd.Attach(outVol.Id, attachOptions); err == nil {
+			return outVol, nil
+		}
+		// We failed to attach, scaleUp.
+		allVols = append(allVols, outVol)
+	}
+	return d.scaleUp(method, vd, inVol, allVols, attachOptions)
+}
+
+func (d *driver) attachVol(
+	method string,
+	vd volume.VolumeDriver,
+	vol *api.Volume,
+	attachOptions map[string]string,
+) (
+	outVolume *api.Volume,
+	err error,
+) {
+	attachPath, err := vd.Attach(vol.Id, attachOptions)
+
+	switch err {
+	case nil:
+		d.logRequest(method, vol.Locator.Name).Debugf(
+			"response %v", attachPath)
+		return vol, nil
+	case volume.ErrVolAttachedOnRemoteNode:
+		d.logRequest(method, vol.Locator.Name).Infof(
+			"Mount volume attached on remote node.")
+		return vol, nil
+	default:
+		d.logRequest(method, vol.Locator.Name).Warnf(
+			"Cannot attach volume: %v", err.Error())
+		return vol, err
+	}
+}
+
+func (d *driver) attachOptionsFromSpec(
+	spec *api.VolumeSpec,
+) (map[string]string) {
+	if spec.Passphrase != "" {
+		opts := make(map[string]string)
+		opts[string(volume.AttachOptionsSecret)] = spec.Passphrase
+		return opts
+	}
+	return nil
 }
 
 func (d *driver) mount(w http.ResponseWriter, r *http.Request) {
@@ -398,41 +388,54 @@ func (d *driver) mount(w http.ResponseWriter, r *http.Request) {
 		d.errorResponse(w, err)
 		return
 	}
-
-	vol, err := d.volFromName(request.Name)
+	_, spec, name := d.SpecFromString(request.Name)
+	attachOptions := d.attachOptionsFromSpec(spec)
+	vol, err := d.volFromName(name)
 	if err != nil {
 		d.errorResponse(w, err)
 		return
+	}
+
+	// If a scaled volume is already mounted, then use that volume's id.
+	mountpoint := d.mountpath(name)
+	if vol.Spec.Scale > 1 {
+		id := v.MountedAt(mountpoint)
+		if len(id) != 0 {
+			name = id
+			if vol, err = d.volFromName(name); err != nil {
+				d.errorResponse(w, err)
+				return
+			}
+		}
 	}
 
 	// If this is a block driver, first attach the volume.
 	if v.Type() == api.DriverType_DRIVER_TYPE_BLOCK {
-		attachPath, err := v.Attach(vol.Id)
-		if err != nil {
-			if err == volume.ErrVolAttachedOnRemoteNode {
-				d.logRequest(method, request.Name).Infof("Volume is attached on a remote node... will attempt to mount it.")
-			} else {
-				d.logRequest(method, request.Name).Warnf("Cannot attach volume: %v", err.Error())
-				d.errorResponse(w, err)
-				return
-			}
+		// If volume is scaled up, a new volume is created and
+		// vol will change.
+		if vol.Scaled() {
+			vol, err = d.attachScale(method, v, vol, attachOptions)
 		} else {
-			d.logRequest(method, request.Name).Debugf("response %v", attachPath)
+			vol, err = d.attachVol(method, v, vol, attachOptions)
+		}
+		if err != nil {
+			d.errorResponse(w, err)
+			return
 		}
 	}
 
-	// Now mount it.
-	response.Mountpoint = d.mountpath(request)
-	os.MkdirAll(response.Mountpoint, 0755)
-
+	// Note that name is unchanged even if a new volume was created as a
+	// result of scale up.
+	response.Mountpoint = mountpoint
+	os.MkdirAll(mountpoint, 0755)
 	err = v.Mount(vol.Id, response.Mountpoint)
 	if err != nil {
-		d.logRequest(method, request.Name).Warnf("Cannot mount volume %v, %v",
+		d.logRequest(method, request.Name).Warnf(
+			"Cannot mount volume %v, %v",
 			response.Mountpoint, err)
 		d.errorResponse(w, err)
 		return
 	}
-
 	d.logRequest(method, request.Name).Infof("response %v", response.Mountpoint)
 	json.NewEncoder(w).Encode(&response)
 }
@@ -446,17 +449,17 @@ func (d *driver) path(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vol, err := d.volFromName(request.Name)
+	_, _, name := d.SpecFromString(request.Name)
+	vol, err := d.volFromName(name)
 	if err != nil {
 		e := d.volNotFound(method, request.Name, err, w)
 		d.errorResponse(w, e)
 		return
 	}
 
-	d.logRequest(method, request.Name).Debugf("")
-
+	d.logRequest(method, name).Debugf("")
 	if len(vol.AttachPath) == 0 || len(vol.AttachPath) == 0 {
-		e := d.volNotMounted(method, request.Name)
+		e := d.volNotMounted(method, name)
 		d.errorResponse(w, e)
 		return
 	}
@@ -499,14 +502,21 @@ func (d *driver) get(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	vol, err := d.volFromName(request.Name)
+	parsed, _, name := d.SpecFromString(request.Name)
+	returnName := ""
+	if parsed {
+		returnName = request.Name
+	} else {
+		returnName = name
+	}
+	vol, err := d.volFromName(name)
 	if err != nil {
 		e := d.volNotFound(method, request.Name, err, w)
 		d.errorResponse(w, e)
 		return
 	}
 
-	volInfo := volumeInfo{Name: request.Name}
+	volInfo := volumeInfo{Name: returnName}
 	if len(vol.AttachPath) > 0 || len(vol.AttachPath) > 0 {
 		volInfo.Mountpoint = path.Join(vol.AttachPath[0], config.DataDir)
 	}
@@ -519,7 +529,9 @@ func (d *driver) unmount(w http.ResponseWriter, r *http.Request) {
 
 	v, err := volumedrivers.Get(d.name)
 	if err != nil {
-		d.logRequest(method, "").Warnf("Cannot locate volume driver: %v", err.Error())
+		d.logRequest(method, "").Warnf(
+			"Cannot locate volume driver: %v",
+			err.Error())
 		d.errorResponse(w, err)
 		return
 	}
@@ -529,24 +541,39 @@ func (d *driver) unmount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vol, err := d.volFromName(request.Name)
+	_, _, name := d.SpecFromString(request.Name)
+	vol, err := d.volFromName(name)
 	if err != nil {
-		e := d.volNotFound(method, request.Name, err, w)
+		e := d.volNotFound(method, name, err, w)
 		d.errorResponse(w, e)
 		return
 	}
 
-	mountpoint := d.mountpath(request)
-	err = v.Unmount(vol.Id, mountpoint)
+	mountpoint := d.mountpath(name)
+	id := vol.Id
+	if vol.Spec.Scale > 1 {
+		id = v.MountedAt(mountpoint)
+		if len(id) == 0 {
+			err := fmt.Errorf("Failed to find volume mapping for %v",
+				mountpoint)
+			d.logRequest(method, request.Name).Warnf(
+				"Cannot unmount volume %v, %v",
+				mountpoint, err)
+			d.errorResponse(w, err)
+			return
+		}
+	}
+	err = v.Unmount(id, mountpoint)
 	if err != nil {
-		d.logRequest(method, request.Name).Warnf("Cannot unmount volume %v, %v",
+		d.logRequest(method, request.Name).Warnf(
+			"Cannot unmount volume %v, %v",
 			mountpoint, err)
 		d.errorResponse(w, err)
 		return
 	}
 
 	if v.Type() == api.DriverType_DRIVER_TYPE_BLOCK {
-		_ = v.Detach(vol.Id)
+		_ = v.Detach(id)
 	}
 	d.emptyResponse(w)
 }

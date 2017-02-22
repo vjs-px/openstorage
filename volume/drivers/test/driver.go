@@ -41,8 +41,10 @@ type Context struct {
 	testFile   string
 	Encrypted  bool
 	Passphrase string
+	AttachOptions map[string]string
 }
 
+// NewContext returns a new Context
 func NewContext(d volume.VolumeDriver) *Context {
 	return &Context{
 		VolumeDriver: d,
@@ -54,6 +56,7 @@ func NewContext(d volume.VolumeDriver) *Context {
 	}
 }
 
+// RunShort runs the short test suite
 func RunShort(t *testing.T, ctx *Context) {
 	create(t, ctx)
 	inspect(t, ctx)
@@ -68,6 +71,7 @@ func RunShort(t *testing.T, ctx *Context) {
 	runEnd(t, ctx)
 }
 
+// Run runs the complete test suite
 func Run(t *testing.T, ctx *Context) {
 	RunShort(t, ctx)
 	RunSnap(t, ctx)
@@ -81,6 +85,7 @@ func runEnd(t *testing.T, ctx *Context) {
 	shutdown(t, ctx)
 }
 
+// RunSnap runs only the snap related tests
 func RunSnap(t *testing.T, ctx *Context) {
 	snap(t, ctx)
 	snapInspect(t, ctx)
@@ -188,13 +193,13 @@ func attach(t *testing.T, ctx *Context) {
 	fmt.Println("attach")
 	err := waitReady(t, ctx)
 	require.NoError(t, err, "Volume status is not up")
-	p, err := ctx.Attach(ctx.volID)
+	p, err := ctx.Attach(ctx.volID, ctx.AttachOptions)
 	if err != nil {
 		require.Equal(t, err, volume.ErrNotSupported, "Error on attach %v", err)
 	}
 	ctx.devicePath = p
 
-	p, err = ctx.Attach(ctx.volID)
+	p, err = ctx.Attach(ctx.volID, ctx.AttachOptions)
 	if err == nil {
 		require.Equal(t, p, ctx.devicePath, "Multiple calls to attach if not errored should return the same path")
 	}

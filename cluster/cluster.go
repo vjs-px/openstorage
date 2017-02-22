@@ -19,8 +19,10 @@ var (
 )
 
 const (
+	// APIVersion for cluster APIs
 	APIVersion = "v1"
-	APIBase    = "/var/lib/osd/cluster/"
+	// APIBase url for cluster APIs
+	APIBase = "/var/lib/osd/cluster/"
 )
 
 // NodeEntry is used to discover other nodes in the cluster
@@ -37,6 +39,7 @@ type NodeEntry struct {
 	NodeLabels map[string]string
 }
 
+// ClusterInfo is the basic info about the cluster and its nodes
 type ClusterInfo struct {
 	Size        int
 	Status      api.Status
@@ -52,6 +55,11 @@ type ClusterInitState struct {
 	Collector   kvdb.UpdatesCollector
 }
 
+// FinalizeInitCb is invoked when init is complete and is in the process of
+// updating the cluster database. This callback is invoked under lock and must
+// finish quickly, else it will slow down other node joins.
+type FinalizeInitCb func() error
+
 // ClusterListener is an interface to be implemented by a storage driver
 // if it is participating in a multi host environment.  It exposes events
 // in the cluster state machine.  Your driver can do the needful when
@@ -64,7 +72,7 @@ type ClusterListener interface {
 	ClusterInit(self *api.Node) error
 
 	// Init is called when this node is joining an existing cluster for the first time.
-	Init(self *api.Node, state *ClusterInfo) error
+	Init(self *api.Node, state *ClusterInfo) (FinalizeInitCb, error)
 
 	// CleanupInit is called when Init failed.
 	CleanupInit(self *api.Node, clusterInfo *ClusterInfo) error
@@ -79,10 +87,13 @@ type ClusterListener interface {
 	Add(node *api.Node) error
 
 	// Remove is called when a node leaves the cluster
-	Remove(node *api.Node) error
+	Remove(node *api.Node, forceRemove bool) error
 
 	// CanNodeRemove test to see if we can remove this node
 	CanNodeRemove(node *api.Node) error
+
+	// MarkNodeDown marks the given node's status as down
+	MarkNodeDown(node *api.Node) error
 
 	// Update is called when a node status changes significantly
 	// in the cluster changes.
@@ -102,11 +113,13 @@ type ClusterListener interface {
 	ListenerData() map[string]interface{}
 }
 
+// ClusterState is the gossip state of all nodes in the cluster
 type ClusterState struct {
 	History    []*types.GossipSessionInfo
 	NodeStatus []types.NodeValue
 }
 
+// ClusterData interface provides apis to handle data of the cluster
 type ClusterData interface {
 	// UpdateData updates node data associated with this node
 	UpdateData(dataKey string, value interface{}) error
@@ -125,6 +138,7 @@ type ClusterData interface {
 	GetGossipState() *ClusterState
 }
 
+// ClusterStatus interface provides apis for cluster and node status
 type ClusterStatus interface {
 	// NodeStatus returns the status of THIS node as seen by the Cluster Provider
 	// for a given listener. If listenerName is empty it returns the status of
@@ -139,7 +153,10 @@ type ClusterStatus interface {
 	PeerStatus(listenerName string) (map[string]api.Status, error)
 }
 
-type ClusterCallback interface {
+// ClusterRemove interface provides apis for removing nodes from a cluster
+type ClusterRemove interface {
+	// Remove node(s) from the cluster permanently.
+	Remove(nodes []api.Node, forceRemove bool) error
 	// NodeRemoveDone notify cluster manager NodeRemove is done.
 	NodeRemoveDone(nodeID string, result error)
 }
@@ -155,9 +172,6 @@ type Cluster interface {
 	// Enumerate lists all the nodes in the cluster.
 	Enumerate() (api.Cluster, error)
 
-	// Remove node(s) from the cluster permanently.
-	Remove(nodes []api.Node) error
-
 	// SetSize sets the maximum number of nodes in a cluster.
 	SetSize(size int) error
 
@@ -166,13 +180,16 @@ type Cluster interface {
 
 	// Start starts the cluster manager and state machine.
 	// It also causes this node to join the cluster.
-	Start() error
+	// nodeInitialized indicates if the caller of this method expects the node
+	// to have been in an already-initialized state.
+	Start(clusterSize int, nodeInitialized bool) error
 
 	ClusterData
-	ClusterCallback
+	ClusterRemove
 	ClusterStatus
 }
 
+// ClusterNotify is the callback function listeners can use to notify cluster manager
 type ClusterNotify func(string, api.ClusterNotify) (string, error)
 
 // Init instantiates a new cluster manager.

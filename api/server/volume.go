@@ -100,7 +100,7 @@ func (vd *volApi) volumeSet(w http.ResponseWriter, r *http.Request) {
 	for err == nil && req.Action != nil {
 		if req.Action.Attach != api.VolumeActionParam_VOLUME_ACTION_PARAM_NONE {
 			if req.Action.Attach == api.VolumeActionParam_VOLUME_ACTION_PARAM_ON {
-				_, err = d.Attach(volumeID)
+				_, err = d.Attach(volumeID, req.Options)
 			} else {
 				err = d.Detach(volumeID)
 			}
@@ -193,7 +193,23 @@ func (vd *volApi) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	volumes, err := d.Inspect([]string{volumeID})
+
+	if len(volumes) < 1 {
+		e := fmt.Errorf("Volume %s does not exist", volumeID)
+		vd.sendError(vd.name, method, w, e.Error(), http.StatusBadRequest)
+		return
+	}
+	vol := volumes[0]
+
 	volumeResponse := &api.VolumeResponse{}
+
+	if vol.Spec.Sticky {
+		volumeResponse.Error = "Cannot delete a sticky volume"
+		json.NewEncoder(w).Encode(volumeResponse)
+		return
+	}
+
 	if err := d.Delete(volumeID); err != nil {
 		volumeResponse.Error = err.Error()
 	}
@@ -359,6 +375,32 @@ func (vd *volApi) stats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(stats)
 }
 
+func (vd *volApi) usedsize(w http.ResponseWriter, r *http.Request) {
+	var volumeID string
+	var err error
+
+	method := "newVolumeDriver"
+	if volumeID, err = vd.parseVolumeID(r); err != nil {
+		e := fmt.Errorf("Failed to parse volumeID: %s", err.Error())
+		vd.sendError(vd.name, method, w, e.Error(), http.StatusBadRequest)
+		return
+	}
+
+	d, err := volumedrivers.Get(vd.name)
+	if err != nil {
+		notFound(w, r)
+		return
+	}
+
+	used, err := d.UsedSize(volumeID)
+	if err != nil {
+		e := fmt.Errorf("Failed to get used size: %s", err.Error())
+		vd.sendError(vd.name, method, w, e.Error(), http.StatusBadRequest)
+		return
+	}
+	json.NewEncoder(w).Encode(used)
+}
+
 func (vd *volApi) alerts(w http.ResponseWriter, r *http.Request) {
 	var volumeID string
 	var err error
@@ -431,19 +473,21 @@ func snapPath(route, version string) string {
 
 func (vd *volApi) Routes() []*Route {
 	return []*Route{
-		&Route{verb: "GET", path: "/"+api.OsdVolumePath+"/versions", fn: vd.versions},
-		&Route{verb: "POST", path: volPath("", volume.APIVersion), fn: vd.create},
-		&Route{verb: "PUT", path: volPath("/{id}", volume.APIVersion), fn: vd.volumeSet},
-		&Route{verb: "GET", path: volPath("", volume.APIVersion), fn: vd.enumerate},
-		&Route{verb: "GET", path: volPath("/{id}", volume.APIVersion), fn: vd.inspect},
-		&Route{verb: "DELETE", path: volPath("/{id}", volume.APIVersion), fn: vd.delete},
-		&Route{verb: "GET", path: volPath("/stats", volume.APIVersion), fn: vd.stats},
-		&Route{verb: "GET", path: volPath("/stats/{id}", volume.APIVersion), fn: vd.stats},
-		&Route{verb: "GET", path: volPath("/alerts", volume.APIVersion), fn: vd.alerts},
-		&Route{verb: "GET", path: volPath("/alerts/{id}", volume.APIVersion), fn: vd.alerts},
-		&Route{verb: "GET", path: volPath("/requests", volume.APIVersion), fn: vd.requests},
-		&Route{verb: "GET", path: volPath("/requests/{id}", volume.APIVersion), fn: vd.requests},
-		&Route{verb: "POST", path: snapPath("", volume.APIVersion), fn: vd.snap},
-		&Route{verb: "GET", path: snapPath("", volume.APIVersion), fn: vd.snapEnumerate},
+		{verb: "GET", path: "/" + api.OsdVolumePath + "/versions", fn: vd.versions},
+		{verb: "POST", path: volPath("", volume.APIVersion), fn: vd.create},
+		{verb: "PUT", path: volPath("/{id}", volume.APIVersion), fn: vd.volumeSet},
+		{verb: "GET", path: volPath("", volume.APIVersion), fn: vd.enumerate},
+		{verb: "GET", path: volPath("/{id}", volume.APIVersion), fn: vd.inspect},
+		{verb: "DELETE", path: volPath("/{id}", volume.APIVersion), fn: vd.delete},
+		{verb: "GET", path: volPath("/stats", volume.APIVersion), fn: vd.stats},
+		{verb: "GET", path: volPath("/stats/{id}", volume.APIVersion), fn: vd.stats},
+		{verb: "GET", path: volPath("/usedsize", volume.APIVersion), fn: vd.usedsize},
+		{verb: "GET", path: volPath("/usedsize/{id}", volume.APIVersion), fn: vd.usedsize},
+		{verb: "GET", path: volPath("/alerts", volume.APIVersion), fn: vd.alerts},
+		{verb: "GET", path: volPath("/alerts/{id}", volume.APIVersion), fn: vd.alerts},
+		{verb: "GET", path: volPath("/requests", volume.APIVersion), fn: vd.requests},
+		{verb: "GET", path: volPath("/requests/{id}", volume.APIVersion), fn: vd.requests},
+		{verb: "POST", path: snapPath("", volume.APIVersion), fn: vd.snap},
+		{verb: "GET", path: snapPath("", volume.APIVersion), fn: vd.snapEnumerate},
 	}
 }

@@ -2,9 +2,9 @@ package volume
 
 import (
 	"fmt"
+	"github.com/libopenstorage/openstorage/api"
 	"github.com/libopenstorage/openstorage/api/client"
 	"github.com/libopenstorage/openstorage/volume"
-	"github.com/libopenstorage/openstorage/api"
 )
 
 // VolumeDriver returns a REST wrapper for the VolumeDriver interface.
@@ -12,7 +12,7 @@ func VolumeDriver(c *client.Client) volume.VolumeDriver {
 	return newVolumeClient(c)
 }
 
-// NewDriver returns a new REST client of the supplied version for specified driver.
+// NewDriverClient returns a new REST client of the supplied version for specified driver.
 // host: REST endpoint [http://<ip>:<port> OR unix://<path-to-unix-socket>]. default: [unix:///var/lib/osd/<driverName>.sock]
 // version: Volume API version
 func NewDriverClient(host, driverName, version string) (*client.Client, error) {

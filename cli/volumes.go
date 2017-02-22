@@ -166,7 +166,7 @@ func (v *volDriver) volumeAttach(context *cli.Context) {
 	v.volumeOptions(context)
 	volumeID := context.Args()[0]
 
-	devicePath, err := v.volDriver.Attach(string(volumeID))
+	devicePath, err := v.volDriver.Attach(string(volumeID), nil)
 	if err != nil {
 		cmdError(context, fn, err)
 		return
@@ -386,10 +386,10 @@ func baseVolumeCommand(v *volDriver) []cli.Command {
 					Usage: "replication factor [1..2]",
 					Value: 1,
 				},
-				cli.IntFlag{
+				cli.StringFlag{
 					Name:  "cos",
-					Usage: "Class of Service: [1..9]",
-					Value: 1,
+					Usage: "Class of Service: [high|medium|low]",
+					Value: "low",
 				},
 				cli.IntFlag{
 					Name:  "snap_interval,si",

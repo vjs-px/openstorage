@@ -20,9 +20,13 @@ import (
 )
 
 const (
-	Name          = "buse"
-	Type          = api.DriverType_DRIVER_TYPE_BLOCK
-	BuseDBKey     = "OpenStorageBuseKey"
+	// Name of the driver
+	Name = "buse"
+	// Type of the driver
+	Type = api.DriverType_DRIVER_TYPE_BLOCK
+	// BuseDBKey for openstorage
+	BuseDBKey = "OpenStorageBuseKey"
+	// BuseMountPath mount path for openstorage
 	BuseMountPath = "/var/lib/openstorage/buse/"
 )
 
@@ -30,6 +34,7 @@ const (
 type driver struct {
 	volume.IODriver
 	volume.StoreEnumerator
+	volume.StatsDriver
 	buseDevices map[string]*buseDev
 }
 
@@ -75,10 +80,15 @@ func copyFile(source string, dest string) (err error) {
 	return
 }
 
+// Init intialized the buse driver
 func Init(params map[string]string) (volume.VolumeDriver, error) {
+	nbdInit()
+
 	inst := &driver{
-		IODriver:        volume.IONotSupported,
-		StoreEnumerator: common.NewDefaultStoreEnumerator(Name, kvdb.Instance()),
+		IODriver: volume.IONotSupported,
+		StoreEnumerator: common.NewDefaultStoreEnumerator(Name,
+			kvdb.Instance()),
+		StatsDriver: volume.StatsNotSupported,
 	}
 	inst.buseDevices = make(map[string]*buseDev)
 	if err := os.MkdirAll(BuseMountPath, 0744); err != nil {
@@ -144,14 +154,18 @@ func (d *driver) ListenerPeerStatus() map[string]api.Status {
 	return nil
 }
 
-func (d *driver) Create(locator *api.VolumeLocator, source *api.Source, spec *api.VolumeSpec) (string, error) {
+func (d *driver) Create(
+	locator *api.VolumeLocator,
+	source *api.Source,
+	spec *api.VolumeSpec,
+) (string, error) {
 	volumeID := uuid.New()
 	volumeID = strings.TrimSuffix(volumeID, "\n")
 	if spec.Size == 0 {
-		return "", fmt.Errorf("Volume size cannot be zero", "buse")
+		return "", fmt.Errorf("Volume size cannot be zero: buse")
 	}
 	if spec.Format == api.FSType_FS_TYPE_NONE {
-		return "", fmt.Errorf("Missing volume format", "buse")
+		return "", fmt.Errorf("Missing volume format: buse")
 	}
 	// Create a file on the local buse path with this UUID.
 	buseFile := path.Join(BuseMountPath, volumeID)
@@ -170,7 +184,7 @@ func (d *driver) Create(locator *api.VolumeLocator, source *api.Source, spec *ap
 		file: buseFile,
 		f:    f,
 	}
-	nbd := Create(bd, int64(spec.Size))
+	nbd := Create(bd, volumeID, int64(spec.Size))
 	bd.nbd = nbd
 
 	dlog.Infof("Connecting to NBD...")
@@ -188,7 +202,8 @@ func (d *driver) Create(locator *api.VolumeLocator, source *api.Source, spec *ap
 		return "", err
 	}
 
-	dlog.Infof("BUSE mapped NBD device %s (size=%v) to block file %s", dev, spec.Size, buseFile)
+	dlog.Infof("BUSE mapped NBD device %s (size=%v) to block file %s", dev,
+		spec.Size, buseFile)
 
 	v := common.NewVolume(
 		volumeID,
@@ -227,7 +242,8 @@ func (d *driver) Delete(volumeID string) error {
 	bd.f.Close()
 	bd.nbd.Disconnect()
 
-	dlog.Infof("BUSE deleted volume %v at NBD device %s", volumeID, v.DevicePath)
+	dlog.Infof("BUSE deleted volume %v at NBD device %s", volumeID,
+		v.DevicePath)
 
 	if err := d.DeleteVol(volumeID); err != nil {
 		dlog.Println(err)
@@ -237,13 +253,17 @@ func (d *driver) Delete(volumeID string) error {
 	return nil
 }
 
+func (d *driver) MountedAt(mountpath string) string {
+	return ""
+}
+
 func (d *driver) Mount(volumeID string, mountpath string) error {
 	v, err := d.GetVol(volumeID)
 	if err != nil {
 		return fmt.Errorf("Failed to locate volume %q", volumeID)
 	}
 	if len(v.AttachPath) > 0 && len(v.AttachPath) > 0 {
-		return fmt.Errorf("Volume %q already mounted at %q", v.AttachPath[0])
+		return fmt.Errorf("Volume %q already mounted at %q", volumeID, v.AttachPath[0])
 	}
 	if err := syscall.Mount(v.DevicePath, mountpath, v.Spec.Format.SimpleString(), 0, ""); err != nil {
 		return fmt.Errorf("Failed to mount %v at %v: %v", v.DevicePath, mountpath, err)
@@ -311,7 +331,7 @@ func (d *driver) Set(volumeID string, locator *api.VolumeLocator, spec *api.Volu
 	return d.UpdateVol(v)
 }
 
-func (d *driver) Attach(volumeID string) (string, error) {
+func (d *driver) Attach(volumeID string, attachOptions map[string]string) (string, error) {
 	// Nothing to do on attach.
 	return path.Join(BuseMountPath, volumeID), nil
 }
@@ -319,14 +339,6 @@ func (d *driver) Attach(volumeID string) (string, error) {
 func (d *driver) Detach(volumeID string) error {
 	// Nothing to do on detach.
 	return nil
-}
-
-func (d *driver) Stats(volumeID string, cumulative bool) (*api.Stats, error) {
-	return nil, volume.ErrNotSupported
-}
-
-func (d *driver) Alerts(volumeID string) (*api.Alerts, error) {
-	return nil, volume.ErrNotSupported
 }
 
 func (d *driver) Shutdown() {
@@ -338,15 +350,22 @@ func (d *driver) ClusterInit(self *api.Node) error {
 	return nil
 }
 
-func (d *driver) Init(self *api.Node, clusterInfo *cluster.ClusterInfo) error {
-	return nil
+func (d *driver) Init(
+	self *api.Node,
+	clusterInfo *cluster.ClusterInfo,
+) (cluster.FinalizeInitCb, error) {
+	return nil, nil
 }
 
 func (d *driver) CleanupInit(self *api.Node, db *cluster.ClusterInfo) error {
 	return nil
 }
 
-func (d *driver) Join(self *api.Node, initState *cluster.ClusterInitState, handleNotifications cluster.ClusterNotify) error {
+func (d *driver) Join(
+	self *api.Node,
+	initState *cluster.ClusterInitState,
+	handleNotifications cluster.ClusterNotify,
+) error {
 	return nil
 }
 
@@ -354,11 +373,15 @@ func (d *driver) Add(self *api.Node) error {
 	return nil
 }
 
-func (d *driver) Remove(self *api.Node) error {
+func (d *driver) Remove(self *api.Node, forceRemove bool) error {
 	return nil
 }
 
 func (d *driver) CanNodeRemove(self *api.Node) error {
+	return nil
+}
+
+func (d *driver) MarkNodeDown(self *api.Node) error {
 	return nil
 }
 
@@ -372,8 +395,4 @@ func (d *driver) Leave(self *api.Node) error {
 
 func (d *driver) Halt(self *api.Node, db *cluster.ClusterInfo) error {
 	return nil
-}
-
-func (d *driver) GetActiveRequests() (*api.ActiveRequests, error) {
-	return nil, nil
 }
