@@ -31,7 +31,7 @@ func TestCmdMarshalProto(t *testing.T) {
  "passphrase": "",
  "snapshot_schedule": "",
  "scale": 0,
- "sticky": false
+ "sticky": false,
  "max_cloudsnaps": 0,
  "cloudsnap_schedule": ""
 }`,
