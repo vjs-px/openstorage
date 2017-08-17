@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"go.pedge.io/dlog"
-	"go.pedge.io/proto/time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -24,6 +23,7 @@ import (
 	"github.com/libopenstorage/openstorage/volume"
 	"github.com/libopenstorage/openstorage/volume/drivers/common"
 	"github.com/portworx/kvdb"
+	"github.com/libopenstorage/openstorage/pkg/proto/time"
 )
 
 const (
