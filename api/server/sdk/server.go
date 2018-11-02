@@ -23,16 +23,18 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/gobuffalo/packr"
+	"github.com/libopenstorage/openstorage/alerts"
+	"github.com/libopenstorage/openstorage/volume"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+
+	"github.com/gobuffalo/packr"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/libopenstorage/openstorage/alerts"
 	"github.com/libopenstorage/openstorage/api"
 	"github.com/libopenstorage/openstorage/api/spec"
 	"github.com/libopenstorage/openstorage/cluster"
 	"github.com/libopenstorage/openstorage/pkg/grpcserver"
-	"github.com/libopenstorage/openstorage/volume"
 	volumedrivers "github.com/libopenstorage/openstorage/volume/drivers"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -75,7 +77,6 @@ type Server struct {
 	volumeServer         *VolumeServer
 	objectstoreServer    *ObjectstoreServer
 	schedulePolicyServer *SchedulePolicyServer
-	clusterPairServer    *ClusterPairServer
 	cloudBackupServer    *CloudBackupServer
 	credentialServer     *CredentialServer
 	identityServer       *IdentityServer
@@ -148,9 +149,6 @@ func New(config *ServerConfig) (*Server, error) {
 	s.alertsServer = &alertsServer{
 		server: s,
 	}
-	s.clusterPairServer = &ClusterPairServer{
-		server: s,
-	}
 
 	return s, nil
 }
@@ -176,12 +174,11 @@ func (s *Server) Start() error {
 		api.RegisterOpenStorageSchedulePolicyServer(grpcServer, s.schedulePolicyServer)
 		api.RegisterOpenStorageIdentityServer(grpcServer, s.identityServer)
 		api.RegisterOpenStorageVolumeServer(grpcServer, s.volumeServer)
-		api.RegisterOpenStorageMigrateServer(grpcServer, s.volumeServer)
 		api.RegisterOpenStorageCredentialsServer(grpcServer, s.credentialServer)
 		api.RegisterOpenStorageCloudBackupServer(grpcServer, s.cloudBackupServer)
 		api.RegisterOpenStorageMountAttachServer(grpcServer, s.volumeServer)
 		api.RegisterOpenStorageAlertsServer(grpcServer, s.alertsServer)
-		api.RegisterOpenStorageClusterPairServer(grpcServer, s.clusterPairServer)
+
 		return grpcServer
 	})
 	if err != nil {
@@ -365,23 +362,6 @@ func (s *Server) restServerSetupHandlers() (*http.ServeMux, error) {
 	}
 
 	err = api.RegisterOpenStorageAlertsHandlerFromEndpoint(
-		context.Background(),
-		gmux,
-		s.Address(),
-		[]grpc.DialOption{grpc.WithInsecure()})
-	if err != nil {
-		return nil, err
-	}
-	err = api.RegisterOpenStorageClusterPairHandlerFromEndpoint(
-		context.Background(),
-		gmux,
-		s.Address(),
-		[]grpc.DialOption{grpc.WithInsecure()})
-	if err != nil {
-		return nil, err
-	}
-
-	err = api.RegisterOpenStorageMigrateHandlerFromEndpoint(
 		context.Background(),
 		gmux,
 		s.Address(),
