@@ -1673,6 +1673,60 @@
         "title": "Empty response",
         "type": "object"
       },
+      "apiSdkOpenStoragePolicyCreateRequest": {
+        "properties": {
+          "storage_policy": {
+            "$ref": "#/components/schemas/apiSdkStoragePolicy"
+          }
+        },
+        "title": "START - OpenStoragePolicy structs\nDefine a request to create storage policy",
+        "type": "object"
+      },
+      "apiSdkOpenStoragePolicyCreateResponse": {
+        "title": "Empty response",
+        "type": "object"
+      },
+      "apiSdkOpenStoragePolicyDeleteResponse": {
+        "type": "object"
+      },
+      "apiSdkOpenStoragePolicyEnumerateResponse": {
+        "properties": {
+          "storage_policy": {
+            "$ref": "#/components/schemas/apiSdkStoragePolicy"
+          }
+        },
+        "type": "object"
+      },
+      "apiSdkOpenStoragePolicyInspectRequest": {
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "apiSdkOpenStoragePolicyInspectResponse": {
+        "properties": {
+          "storage_policy": {
+            "$ref": "#/components/schemas/apiSdkStoragePolicy"
+          }
+        },
+        "type": "object"
+      },
+      "apiSdkOpenStoragePolicyUpdateRequest": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "storage_policy": {
+            "$ref": "#/components/schemas/apiSdkStoragePolicy"
+          }
+        },
+        "type": "object"
+      },
+      "apiSdkOpenStoragePolicyUpdateResponse": {
+        "type": "object"
+      },
       "apiSdkRole": {
         "properties": {
           "name": {
@@ -1935,6 +1989,19 @@
           }
         },
         "title": "Defines a capability of he cluster",
+        "type": "object"
+      },
+      "apiSdkStoragePolicy": {
+        "description": "A storage policy is a predefined VolumeSpecUpdate message that can\nbe applied during volume creation. We use VolumeSpecUpdate because\nof its ability to determine easily what has been set by the caller.",
+        "properties": {
+          "name": {
+            "description": "Name of storage policy.",
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/apiVolumeSpecUpdate"
+          }
+        },
         "type": "object"
       },
       "apiSdkTimeWeekday": {
@@ -4600,6 +4667,155 @@
         "summary": "Delete removes a snapshot schedule",
         "tags": [
           "OpenStorageSchedulePolicy"
+        ]
+      }
+    },
+    "/v1/storagepolicy": {
+      "delete": {
+        "operationId": "Delete",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/apiSdkOpenStoragePolicyDeleteResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Deletes a Storage Policy",
+        "tags": [
+          "OpenStoragePolicy"
+        ]
+      },
+      "get": {
+        "operationId": "Enumerate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/apiSdkOpenStoragePolicyEnumerateResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Enumerate returns a list of storage policies",
+        "tags": [
+          "OpenStoragePolicy"
+        ]
+      },
+      "post": {
+        "operationId": "Create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/apiSdkOpenStoragePolicyCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/apiSdkOpenStoragePolicyCreateResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Creates a Storage Policy",
+        "tags": [
+          "OpenStoragePolicy"
+        ]
+      },
+      "put": {
+        "operationId": "Update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/apiSdkOpenStoragePolicyUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/apiSdkOpenStoragePolicyUpdateResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Updates a Storage Policy",
+        "tags": [
+          "OpenStoragePolicy"
+        ]
+      }
+    },
+    "/v1/storagepolicy/{name}": {
+      "put": {
+        "operationId": "Inspect",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/apiSdkOpenStoragePolicyInspectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/apiSdkOpenStoragePolicyInspectResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Inspect returns information about a specified storage policy",
+        "tags": [
+          "OpenStoragePolicy"
         ]
       }
     },
