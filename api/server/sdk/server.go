@@ -36,6 +36,7 @@ import (
 	"github.com/libopenstorage/openstorage/pkg/auth"
 	"github.com/libopenstorage/openstorage/pkg/grpcserver"
 	"github.com/libopenstorage/openstorage/pkg/role"
+	policy "github.com/libopenstorage/openstorage/pkg/storagepolicy"
 	"github.com/libopenstorage/openstorage/volume"
 	volumedrivers "github.com/libopenstorage/openstorage/volume/drivers"
 )
@@ -154,6 +155,7 @@ type sdkGrpcServer struct {
 	identityServer       *IdentityServer
 	roleServer           role.RoleManager
 	alertsServer         api.OpenStorageAlertsServer
+	policyServer         policy.PolicyManager
 }
 
 // Interface check
@@ -426,6 +428,7 @@ func (s *sdkGrpcServer) Start() error {
 		api.RegisterOpenStorageMountAttachServer(grpcServer, s.volumeServer)
 		api.RegisterOpenStorageAlertsServer(grpcServer, s.alertsServer)
 		api.RegisterOpenStorageClusterPairServer(grpcServer, s.clusterPairServer)
+		api.RegisterOpenStoragePolicyServer(grpcServer, s.policyServer)
 
 		if s.config.Security.Role != nil {
 			api.RegisterOpenStorageRoleServer(grpcServer, s.roleServer)

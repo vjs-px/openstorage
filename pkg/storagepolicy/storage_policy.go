@@ -24,6 +24,7 @@ import (
 // PolicyManager has policy CRUD methods defined
 type PolicyManager interface {
 	api.OpenStoragePolicyServer
-	SetEnforcement(string) error
-	DisableEnforcement() error
+	//	SetEnforcement(string) error
+	//	DisableEnforcement() error
+	GetEnforcement() (*api.SdkStoragePolicy, error)
 }
