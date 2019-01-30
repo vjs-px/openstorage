@@ -525,16 +525,13 @@ message CapacityUsageInfo {
   int64 total_bytes = 3;
 }
 
-// A storage policy is a predefined VolumeSpecUpdate message that can
-// be applied during volume creation. We use VolumeSpecUpdate because
-// of its ability to determine easily what has been set by the caller.
+// A SdkStoragePolicy represent minimum set of volume specs to be follow while creating volumes.
+// If enabled, VolumeSpecUpdate will be used before creating volume to ensure minimum volume creation rules
+// are enforced.
 message SdkStoragePolicy {
   // Name of storage policy.
   string name = 1;
- 
-  // Policy to apply to volume creation.
-  // See SDK.
-  // Keep in mind that VolumeSpecUpdate is a subset of VolumeSpec.
+  // VolumeSpecs to apply while creating volume.
   VolumeSpecUpdate policy = 2;
 }
 
