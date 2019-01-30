@@ -1698,18 +1698,18 @@ service OpenStorageCloudBackup {
 
 // START: OpenStoragePolicy Service
 
-// A storage policy is a predefined VolumeSpecUpdate message that can
-// be applied during volume creation. We use VolumeSpecUpdate because
-// of its ability to determine easily what has been set by the caller.
+// OpenStoragePolicy service provides methods to manager storage policies.
+
+// Policies can be used to enforces a set of volume configurations to be followed
+// while creating volumes.
 service OpenStoragePolicy {
   // TODO: storage policy owenership 
 
-  // Creates a Storage Policy
-  //
+  // Creates a storage policy
   rpc Create(SdkOpenStoragePolicyCreateRequest)
     returns (SdkOpenStoragePolicyCreateResponse) {
       option(google.api.http) = {
-        post: "/v1/storagepolicy"
+        post: "/v1/storagepolicies"
         body: "*"
       };
     }
@@ -1718,7 +1718,7 @@ service OpenStoragePolicy {
   rpc Enumerate(SdkOpenStoragePolicyEnumerateRequest)
     returns (SdkOpenStoragePolicyEnumerateResponse) {
       option(google.api.http) = {
-        get: "/v1/storagepolicy"
+        get: "/v1/storagepolicies"
       };
     }
 
@@ -1726,27 +1726,43 @@ service OpenStoragePolicy {
   rpc Inspect(SdkOpenStoragePolicyInspectRequest)
     returns (SdkOpenStoragePolicyInspectResponse) {
       option(google.api.http) = {
-        put: "/v1/storagepolicy/{name}"
-        body: "*"
+        get: "/v1/storagepolicies/inspect/{name}" 
       };
     }
 
-  // Updates a Storage Policy
+  // Updates specified storage policy
   rpc Update(SdkOpenStoragePolicyUpdateRequest)
     returns (SdkOpenStoragePolicyUpdateResponse) {
       option(google.api.http) = {
-        put: "/v1/storagepolicy"
+        put: "/v1/storagepolicies"
         body: "*"
       };
     }
 
-  // Deletes a Storage Policy
+  // Deletes specified storage policy
   rpc Delete(SdkOpenStoragePolicyDeleteRequest)
     returns (SdkOpenStoragePolicyDeleteResponse) {
       option(google.api.http) = {
-        delete: "/v1/storagepolicy"
+        delete: "/v1/storagepolicy/{name}"
       };
     }
+
+  // Enforces specified storage policy
+  rpc Enforce(SdkOpenStoragePolicyEnforceRequest)
+    returns (SdkOpenStoragePolicyEnforceResponse) {
+      option(google.api.http) = {
+        put: "/v1/storagepolicy/enforce"
+      };
+    } 
+
+  // Release specified storage policy constraint for volume
+  // creation
+  rpc Release(SdkOpenStoragePolicyReleaseRequest)
+    returns (SdkOpenStoragePolicyReleaseResponse) {
+      option(google.api.http) = {
+        put: "/v1/storagepolicy/enforce"
+      };
+    }   
 }
 
 //   START - OpenStoragePolicy structs
@@ -1759,38 +1775,52 @@ message SdkOpenStoragePolicyCreateRequest {
 message SdkOpenStoragePolicyCreateResponse {
 }
 
-message SdkOpenStoragePolicyEnumerateRequest{
-  
-}
-message SdkOpenStoragePolicyEnumerateResponse{
-  // TODO: repeated?
-  SdkStoragePolicy storage_policy =1;
+message SdkOpenStoragePolicyEnumerateRequest {
 }
 
-message SdkOpenStoragePolicyInspectRequest{
+message SdkOpenStoragePolicyEnumerateResponse {
+  repeated SdkStoragePolicy storage_policies =1;
+}
+
+message SdkOpenStoragePolicyInspectRequest {
   string name =1;
 }
 
-message SdkOpenStoragePolicyInspectResponse{
+message SdkOpenStoragePolicyInspectResponse {
   SdkStoragePolicy storage_policy =1;
 }
 
-message SdkOpenStoragePolicyDeleteRequest{
+message SdkOpenStoragePolicyDeleteRequest {
   string name = 1;
 }
 
-message SdkOpenStoragePolicyDeleteResponse{
+message SdkOpenStoragePolicyDeleteResponse {
 }
 
-message SdkOpenStoragePolicyUpdateRequest{
-  string name = 1;
-  SdkStoragePolicy storage_policy =2;
+message SdkOpenStoragePolicyUpdateRequest {
+  SdkStoragePolicy storage_policy =1;
 }
 
 message SdkOpenStoragePolicyUpdateResponse {
 }
 
-// END - OpenStoragePolicy structs
+message SdkOpenStoragePolicyEnforceRequest {
+  // name of policy to set as default enforcement
+  // for volume creation
+  // This policy will be used to enforce volume configuration 
+  string name = 1;
+}
+
+message SdkOpenStoragePolicyEnforceResponse {
+}
+
+message SdkOpenStoragePolicyReleaseRequest {
+}
+
+message SdkOpenStoragePolicyReleaseResponse {
+}
+
+//  END - OpenStoragePolicy structs
 // END: OpenStoragePolicy Service
 
 
@@ -2918,6 +2948,8 @@ message SdkServiceCapability {
       CLUSTER_PAIR = 11;
       // Migrate service
       MIGRATE = 12;
+      // StoragePolicy Service
+      STORAGE_POLICY = 13;
     }
 
     // Type of service supported
