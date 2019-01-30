@@ -3,6 +3,7 @@ package storagepolicy
 import (
 	"context"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -205,8 +206,8 @@ func TestSdkStoragePolicyUpdate(t *testing.T) {
 	}
 
 	updateReq := &api.SdkOpenStoragePolicyUpdateRequest{
-		Name: "testupdate",
 		StoragePolicy: &api.SdkStoragePolicy{
+			Name:   "testupdate",
 			Policy: updateSpec,
 		},
 	}
@@ -251,7 +252,9 @@ func TestSdkStoragePolicyUpdateBadArgument(t *testing.T) {
 	assert.Contains(t, serverError.Message(), "Must supply a Storage Policy Name")
 
 	updateReq := &api.SdkOpenStoragePolicyUpdateRequest{
-		Name: "testinspect",
+		StoragePolicy: &api.SdkStoragePolicy{
+			Name: "testinspect",
+		},
 	}
 	_, err = s.Update(context.Background(), updateReq)
 	serverError, ok = status.FromError(err)
@@ -260,8 +263,8 @@ func TestSdkStoragePolicyUpdateBadArgument(t *testing.T) {
 	assert.Contains(t, serverError.Message(), "Must supply Volume Specs")
 
 	updateReq = &api.SdkOpenStoragePolicyUpdateRequest{
-		Name: "non-existant-key",
 		StoragePolicy: &api.SdkStoragePolicy{
+			Name:   "non-existant-key",
 			Policy: volSpec,
 		},
 	}
@@ -352,4 +355,169 @@ func TestSdkStoragePolicyDeleteBadArgument(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, serverError.Code(), codes.InvalidArgument)
 	assert.Contains(t, serverError.Message(), "Must supply a Storage Policy Name")
+}
+
+func TestSdkStoragePolicyEnumerate(t *testing.T) {
+	kv, err := kvdb.New(mem.Name, "policy", []string{}, nil, logrus.Panicf)
+	assert.NoError(t, err)
+
+	s, err := NewSdkStoragePolicyManager(kv)
+	assert.NoError(t, err)
+	volSpec := &api.VolumeSpecUpdate{
+		SizeOpt: &api.VolumeSpecUpdate_Size{
+			Size: 8000,
+		},
+	}
+
+	for i := 1; i <= 10; i++ {
+		req := &api.SdkOpenStoragePolicyCreateRequest{
+			StoragePolicy: &api.SdkStoragePolicy{
+				Name:   "Te$t-Enum_" + strconv.Itoa(i),
+				Policy: volSpec,
+			},
+		}
+
+		_, err = s.Create(context.Background(), req)
+		assert.NoError(t, err)
+	}
+
+	policies, err := s.Enumerate(
+		context.Background(),
+		&api.SdkOpenStoragePolicyEnumerateRequest{},
+	)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 10, len(policies.GetStoragePolicies()))
+}
+
+func TestSdkStoragePolicyEnforcement(t *testing.T) {
+	kv, err := kvdb.New(mem.Name, "policy", []string{}, nil, logrus.Panicf)
+	assert.NoError(t, err)
+
+	s, err := NewSdkStoragePolicyManager(kv)
+	assert.NoError(t, err)
+	volSpec := &api.VolumeSpecUpdate{
+		SizeOpt: &api.VolumeSpecUpdate_Size{
+			Size: 8989,
+		},
+	}
+
+	req := &api.SdkOpenStoragePolicyCreateRequest{
+		StoragePolicy: &api.SdkStoragePolicy{
+			Name:   "testenforce1",
+			Policy: volSpec,
+		},
+	}
+
+	_, err = s.Create(context.Background(), req)
+	assert.NoError(t, err)
+
+	inspReq := &api.SdkOpenStoragePolicyInspectRequest{
+		Name: "testenforce1",
+	}
+
+	resp, err := s.Inspect(context.Background(), inspReq)
+	assert.NoError(t, err)
+	assert.Equal(t, resp.StoragePolicy.GetName(), inspReq.GetName())
+	assert.True(t, reflect.DeepEqual(resp.StoragePolicy.GetPolicy(), req.StoragePolicy.GetPolicy()))
+
+	enforceReq := &api.SdkOpenStoragePolicyEnforceRequest{
+		Name: inspReq.GetName(),
+	}
+	_, err = s.Enforce(context.Background(), enforceReq)
+	assert.NoError(t, err)
+
+	policy, err := s.GetEnforcement()
+	assert.NoError(t, err)
+	assert.Equal(t, policy.GetName(), inspReq.GetName())
+
+	// replace exisiting policy with new one
+	updateReq := &api.SdkOpenStoragePolicyCreateRequest{
+		StoragePolicy: &api.SdkStoragePolicy{
+			Name:   "testenforce2",
+			Policy: volSpec,
+		},
+	}
+
+	_, err = s.Create(context.Background(), updateReq)
+	assert.NoError(t, err)
+
+	inspReq = &api.SdkOpenStoragePolicyInspectRequest{
+		Name: "testenforce2",
+	}
+
+	resp, err = s.Inspect(context.Background(), inspReq)
+	assert.NoError(t, err)
+	assert.Equal(t, resp.StoragePolicy.GetName(), inspReq.GetName())
+	assert.True(t, reflect.DeepEqual(resp.StoragePolicy.GetPolicy(), req.StoragePolicy.GetPolicy()))
+
+	enforceReq = &api.SdkOpenStoragePolicyEnforceRequest{
+		Name: inspReq.GetName(),
+	}
+	_, err = s.Enforce(context.Background(), enforceReq)
+	assert.NoError(t, err)
+
+	policy, err = s.GetEnforcement()
+	assert.NoError(t, err)
+	assert.Equal(t, policy.GetName(), inspReq.GetName())
+
+	// disable enforcement
+	releaseReq := &api.SdkOpenStoragePolicyReleaseRequest{}
+	_, err = s.Release(context.Background(), releaseReq)
+	assert.NoError(t, err)
+
+	policy, err = s.GetEnforcement()
+	assert.NoError(t, err)
+	assert.Equal(t, policy.GetName(), "")
+	assert.Nil(t, policy.GetPolicy())
+}
+
+func TestSdkStoragePolicyEnforcementBadArgument(t *testing.T) {
+	kv, err := kvdb.New(mem.Name, "policy", []string{}, nil, logrus.Panicf)
+	assert.NoError(t, err)
+
+	s, err := NewSdkStoragePolicyManager(kv)
+	assert.NoError(t, err)
+	volSpec := &api.VolumeSpecUpdate{
+		SizeOpt: &api.VolumeSpecUpdate_Size{
+			Size: 8989,
+		},
+	}
+
+	req := &api.SdkOpenStoragePolicyCreateRequest{
+		StoragePolicy: &api.SdkStoragePolicy{
+			Name:   "testenforce1",
+			Policy: volSpec,
+		},
+	}
+
+	_, err = s.Create(context.Background(), req)
+	assert.NoError(t, err)
+
+	inspReq := &api.SdkOpenStoragePolicyInspectRequest{
+		Name: "testenforce1",
+	}
+
+	resp, err := s.Inspect(context.Background(), inspReq)
+	assert.NoError(t, err)
+	assert.Equal(t, resp.StoragePolicy.GetName(), inspReq.GetName())
+	assert.True(t, reflect.DeepEqual(resp.StoragePolicy.GetPolicy(), req.StoragePolicy.GetPolicy()))
+
+	enforceReq := &api.SdkOpenStoragePolicyEnforceRequest{}
+	_, err = s.Enforce(context.Background(), enforceReq)
+	assert.Error(t, err)
+	serverError, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, serverError.Code(), codes.InvalidArgument)
+	assert.Contains(t, serverError.Message(), "Must supply a Storage Policy Name")
+
+	enforceReq = &api.SdkOpenStoragePolicyEnforceRequest{
+		Name: "non-exist-key",
+	}
+	_, err = s.Enforce(context.Background(), enforceReq)
+	assert.Error(t, err)
+	serverError, ok = status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, serverError.Code(), codes.NotFound)
+	assert.Contains(t, serverError.Message(), "not found")
 }

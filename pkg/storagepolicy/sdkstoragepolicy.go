@@ -19,6 +19,7 @@ type SdkPolicyManager struct {
 
 const (
 	policyPrefix = "/storage/policy"
+	EnforcePath  = "/storage/enforce"
 )
 
 // Check interface
@@ -67,7 +68,7 @@ func (p *SdkPolicyManager) Update(
 	ctx context.Context,
 	req *api.SdkOpenStoragePolicyUpdateRequest,
 ) (*api.SdkOpenStoragePolicyUpdateResponse, error) {
-	if req.GetName() == "" {
+	if req.StoragePolicy.GetName() == "" {
 		return nil, status.Error(codes.InvalidArgument, "Must supply a Storage Policy Name")
 	}
 
@@ -78,7 +79,7 @@ func (p *SdkPolicyManager) Update(
 	m := jsonpb.Marshaler{}
 	policyStr, err := m.MarshalToString(req.StoragePolicy.GetPolicy())
 
-	_, err = p.kv.Update(prefixWithName(req.GetName()), policyStr, 0)
+	_, err = p.kv.Update(prefixWithName(req.StoragePolicy.GetName()), policyStr, 0)
 	if err == kvdb.ErrNotFound {
 		return nil, status.Errorf(codes.NotFound, "Storage Policy %s not found", req.StoragePolicy.GetPolicy())
 	} else if err != nil {
@@ -137,14 +138,91 @@ func (p *SdkPolicyManager) Enumerate(
 	ctx context.Context,
 	req *api.SdkOpenStoragePolicyEnumerateRequest,
 ) (*api.SdkOpenStoragePolicyEnumerateResponse, error) {
-	// TODO: check whether this is actually required for phase 1
-	return &api.SdkOpenStoragePolicyEnumerateResponse{}, nil
+
+	// get all keyValue pair at /storage/policy
+	kvp, err := p.kv.Enumerate(policyPrefix)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get policies from database: %v", err)
+	}
+
+	policies := make([]*api.SdkStoragePolicy, 0)
+	for _, policy := range kvp {
+		volSpecs := &api.VolumeSpecUpdate{}
+		err = jsonpb.Unmarshal(strings.NewReader(string(policy.Value)), volSpecs)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Unable to parse %s policy: %v", policy.Key, err)
+		}
+		storagePolicy := &api.SdkStoragePolicy{
+			Name:   strings.TrimPrefix(policy.Key, policyPrefix+"/"),
+			Policy: volSpecs,
+		}
+		policies = append(policies, storagePolicy)
+	}
+
+	return &api.SdkOpenStoragePolicyEnumerateResponse{
+		StoragePolicies: policies,
+	}, nil
 }
 
-func (p *SdkPolicyManager) SetEnforcement(name string) error {
-	return nil
+func (p *SdkPolicyManager) Enforce(
+	ctx context.Context,
+	req *api.SdkOpenStoragePolicyEnforceRequest,
+) (*api.SdkOpenStoragePolicyEnforceResponse, error) {
+	if req.GetName() == "" {
+		return nil, status.Error(codes.InvalidArgument, "Must supply a Storage Policy Name")
+	}
+
+	policy, err := p.Inspect(ctx,
+		&api.SdkOpenStoragePolicyInspectRequest{
+			Name: req.GetName(),
+		},
+	)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "Policy with name %s not found", req.GetName())
+	}
+
+	m := jsonpb.Marshaler{}
+	policyStr, err := m.MarshalToString(policy.StoragePolicy)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Json marshal failed for policy %s :%v", req.GetName, err)
+	}
+
+	_, err = p.kv.Update(EnforcePath, policyStr, 0)
+	if err == kvdb.ErrNotFound {
+		if _, err := p.kv.Create(EnforcePath, policyStr, 0); err != nil {
+			return nil, status.Errorf(codes.Internal, "Unable to save enforcement details %v", err)
+		}
+	} else if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to enforce policy: %v", err)
+	}
+
+	return &api.SdkOpenStoragePolicyEnforceResponse{}, nil
 }
 
-func (p *SdkPolicyManager) DisableEnforcement() error {
-	return nil
+func (p *SdkPolicyManager) Release(
+	ctx context.Context,
+	req *api.SdkOpenStoragePolicyReleaseRequest,
+) (*api.SdkOpenStoragePolicyReleaseResponse, error) {
+	// empty represents no policy enforcement is enabled
+	_, err := p.kv.Update(EnforcePath, api.SdkStoragePolicy{}, 0)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Disable enforcement failed with: %v", err)
+	}
+
+	return &api.SdkOpenStoragePolicyReleaseResponse{}, nil
+}
+
+func (p *SdkPolicyManager) GetEnforcement() (*api.SdkStoragePolicy, error) {
+	var defaultPolicy *api.SdkStoragePolicy
+	kvp, err := p.kv.GetVal(EnforcePath, &defaultPolicy)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Unable to retrive Enforcement details %v", err)
+	}
+
+	err = jsonpb.Unmarshal(strings.NewReader(string(kvp.Value)), defaultPolicy)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Unable to retrive Enforcement details %v", err)
+	}
+
+	return defaultPolicy, nil
 }
