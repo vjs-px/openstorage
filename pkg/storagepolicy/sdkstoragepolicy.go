@@ -2,14 +2,14 @@ package storagepolicy
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"strings"
 
 	"github.com/portworx/kvdb"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/libopenstorage/openstorage/api"
+	"github.com/libopenstorage/openstorage/pkg/jsonpb"
 )
 
 // SdkPolicyManager is an implementation of the Storage Policy Manager for the SDK
@@ -50,13 +50,15 @@ func (p *SdkPolicyManager) Create(
 		return nil, status.Error(codes.InvalidArgument, "Must supply Volume Specs")
 	}
 
-	kvp, err := p.kv.Create(prefixWithName(req.StoragePolicy.GetName()), req.StoragePolicy.GetPolicy(), 0)
+	// Since VolumeSpecUpdate has oneof method of proto, we need to marshal it into string using protobuf
+	// jsonpb
+	m := jsonpb.Marshaler{}
+	policyStr, err := m.MarshalToString(req.StoragePolicy.GetPolicy())
+
+	_, err = p.kv.Create(prefixWithName(req.StoragePolicy.GetName()), policyStr, 0)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to save storage policy: %v", err)
 	}
-	var s *api.VolumeSpecUpdate
-	json.Unmarshal(kvp.Value, &s)
-	fmt.Printf("KVP %v", s)
 
 	return &api.SdkOpenStoragePolicyCreateResponse{}, nil
 }
@@ -73,7 +75,10 @@ func (p *SdkPolicyManager) Update(
 		return nil, status.Error(codes.InvalidArgument, "Must supply Volume Specs")
 	}
 
-	_, err := p.kv.Update(prefixWithName(req.StoragePolicy.GetName()), req.StoragePolicy.GetPolicy(), 0)
+	m := jsonpb.Marshaler{}
+	policyStr, err := m.MarshalToString(req.StoragePolicy.GetPolicy())
+
+	_, err = p.kv.Update(prefixWithName(req.GetName()), policyStr, 0)
 	if err == kvdb.ErrNotFound {
 		return nil, status.Errorf(codes.NotFound, "Storage Policy %s not found", req.StoragePolicy.GetPolicy())
 	} else if err != nil {
@@ -107,16 +112,24 @@ func (p *SdkPolicyManager) Inspect(
 		return nil, status.Error(codes.InvalidArgument, "Must supply a Storage Policy Name")
 	}
 
-	var policy *api.SdkStoragePolicy
-	_, err := p.kv.GetVal(prefixWithName(req.GetName()), &policy)
+	var volSpecs *api.VolumeSpecUpdate
+	kvp, err := p.kv.GetVal(prefixWithName(req.GetName()), &volSpecs)
 	if err == kvdb.ErrNotFound {
-		return nil, status.Errorf(codes.NotFound, "Role %s not found", req.GetName())
+		return nil, status.Errorf(codes.NotFound, "Policy %s not found", req.GetName())
 	} else if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to get role %s information: %v", req.GetName(), err)
+		return nil, status.Errorf(codes.Internal, "Failed to get policy %s information: %v", req.GetName(), err)
+	}
+
+	err = jsonpb.Unmarshal(strings.NewReader(string(kvp.Value)), volSpecs)
+	if err != nil {
+		return nil, err
 	}
 
 	return &api.SdkOpenStoragePolicyInspectResponse{
-		StoragePolicy: policy,
+		StoragePolicy: &api.SdkStoragePolicy{
+			Name:   req.GetName(),
+			Policy: volSpecs,
+		},
 	}, nil
 }
 
