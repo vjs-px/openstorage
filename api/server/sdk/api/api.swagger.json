@@ -100,9 +100,10 @@
           "MOUNT_ATTACH",
           "ROLE",
           "CLUSTER_PAIR",
-          "MIGRATE"
+          "MIGRATE",
+          "STORAGE_POLICY"
         ],
-        "title": "- UNKNOWN: Unknown service\n - CLUSTER: Cluster management\n - CLOUD_BACKUP: Cloud backup of volumes management\n - CREDENTIALS: Credentials management\n - NODE: Node management\n - OBJECT_STORAGE: Object Storage management\n - SCHEDULE_POLICY: Schedule policy management\n - VOLUME: Volume management\n - ALERTS: Alert enumeration\n - MOUNT_ATTACH: Mount/Attach Support\n - ROLE: Role service\n - CLUSTER_PAIR: Cluster Pair service\n - MIGRATE: Migrate service",
+        "title": "- UNKNOWN: Unknown service\n - CLUSTER: Cluster management\n - CLOUD_BACKUP: Cloud backup of volumes management\n - CREDENTIALS: Credentials management\n - NODE: Node management\n - OBJECT_STORAGE: Object Storage management\n - SCHEDULE_POLICY: Schedule policy management\n - VOLUME: Volume management\n - ALERTS: Alert enumeration\n - MOUNT_ATTACH: Mount/Attach Support\n - ROLE: Role service\n - CLUSTER_PAIR: Cluster Pair service\n - MIGRATE: Migrate service\n - STORAGE_POLICY: StoragePolicy Service",
         "type": "string"
       },
       "VolumePlacementRuleAffinityRuleType": {
@@ -1689,18 +1690,16 @@
       "apiSdkOpenStoragePolicyDeleteResponse": {
         "type": "object"
       },
-      "apiSdkOpenStoragePolicyEnumerateResponse": {
-        "properties": {
-          "storage_policy": {
-            "$ref": "#/components/schemas/apiSdkStoragePolicy"
-          }
-        },
+      "apiSdkOpenStoragePolicyEnforceResponse": {
         "type": "object"
       },
-      "apiSdkOpenStoragePolicyInspectRequest": {
+      "apiSdkOpenStoragePolicyEnumerateResponse": {
         "properties": {
-          "name": {
-            "type": "string"
+          "storage_policies": {
+            "items": {
+              "$ref": "#/components/schemas/apiSdkStoragePolicy"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -1713,11 +1712,11 @@
         },
         "type": "object"
       },
+      "apiSdkOpenStoragePolicyReleaseResponse": {
+        "type": "object"
+      },
       "apiSdkOpenStoragePolicyUpdateRequest": {
         "properties": {
-          "name": {
-            "type": "string"
-          },
           "storage_policy": {
             "$ref": "#/components/schemas/apiSdkStoragePolicy"
           }
@@ -4670,36 +4669,7 @@
         ]
       }
     },
-    "/v1/storagepolicy": {
-      "delete": {
-        "operationId": "Delete",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "name",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/apiSdkOpenStoragePolicyDeleteResponse"
-                }
-              }
-            },
-            "description": ""
-          }
-        },
-        "summary": "Deletes a Storage Policy",
-        "tags": [
-          "OpenStoragePolicy"
-        ]
-      },
+    "/v1/storagepolicies": {
       "get": {
         "operationId": "Enumerate",
         "responses": {
@@ -4743,7 +4713,7 @@
             "description": ""
           }
         },
-        "summary": "Creates a Storage Policy",
+        "summary": "Creates a storage policy",
         "tags": [
           "OpenStoragePolicy"
         ]
@@ -4772,14 +4742,14 @@
             "description": ""
           }
         },
-        "summary": "Updates a Storage Policy",
+        "summary": "Updates specified storage policy",
         "tags": [
           "OpenStoragePolicy"
         ]
       }
     },
-    "/v1/storagepolicy/{name}": {
-      "put": {
+    "/v1/storagepolicies/inspect/{name}": {
+      "get": {
         "operationId": "Inspect",
         "parameters": [
           {
@@ -4791,16 +4761,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/apiSdkOpenStoragePolicyInspectRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "content": {
@@ -4814,6 +4774,58 @@
           }
         },
         "summary": "Inspect returns information about a specified storage policy",
+        "tags": [
+          "OpenStoragePolicy"
+        ]
+      }
+    },
+    "/v1/storagepolicy/enforce": {
+      "put": {
+        "operationId": "Release",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/apiSdkOpenStoragePolicyReleaseResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Release specified storage policy constraint for volume\ncreation",
+        "tags": [
+          "OpenStoragePolicy"
+        ]
+      }
+    },
+    "/v1/storagepolicy/{name}": {
+      "delete": {
+        "operationId": "Delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/apiSdkOpenStoragePolicyDeleteResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Deletes specified storage policy",
         "tags": [
           "OpenStoragePolicy"
         ]
