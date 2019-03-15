@@ -223,3 +223,33 @@ func TestCopyingLabelsFromSpecToLocator(t *testing.T) {
 	require.Contains(t, locator.VolumeLabels, "hello")
 	require.Contains(t, locator.VolumeLabels, "goodbye")
 }
+
+func TestGetTokenFromString(t *testing.T) {
+	s := NewSpecHandler()
+
+	token := "abcd.xyz.123"
+
+	tokenParsed, ok := s.GetTokenFromString(fmt.Sprintf("token=%s", token))
+	require.Equal(t, token, tokenParsed)
+	require.Equal(t, ok, true)
+
+	tokenParsed, ok = s.GetTokenFromString(fmt.Sprintf("toabcbn=%s", token))
+	require.Equal(t, "", tokenParsed)
+	require.Equal(t, ok, false)
+
+}
+
+func TestGetTokenSecretFromString(t *testing.T) {
+	s := NewSpecHandler()
+
+	tokenSecret := "mysec123"
+
+	tokenSecretParsed, ok := s.GetTokenSecretFromString(fmt.Sprintf("token_secret=%s", tokenSecret))
+	require.Equal(t, tokenSecret, tokenSecretParsed)
+	require.Equal(t, ok, true)
+
+	tokenSecretParsed, ok = s.GetTokenSecretFromString(fmt.Sprintf("toabcbn_secret=%s", tokenSecret))
+	require.Equal(t, "", tokenSecretParsed)
+	require.Equal(t, ok, false)
+
+}

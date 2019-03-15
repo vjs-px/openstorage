@@ -13,11 +13,13 @@ import (
 	"github.com/libopenstorage/openstorage/api"
 	"github.com/libopenstorage/openstorage/api/spec"
 	"github.com/libopenstorage/openstorage/config"
+	osecrets "github.com/libopenstorage/openstorage/pkg/auth/secrets"
 	"github.com/libopenstorage/openstorage/pkg/grpcserver"
 	"github.com/libopenstorage/openstorage/pkg/options"
 	"github.com/libopenstorage/openstorage/pkg/util"
 	"github.com/libopenstorage/openstorage/volume"
 	"github.com/libopenstorage/openstorage/volume/drivers"
+	"github.com/libopenstorage/secrets/k8s"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -35,6 +37,8 @@ type driver struct {
 	sdkUds string
 	conn   *grpc.ClientConn
 	mu     sync.Mutex
+
+	secretsStore osecrets.Auth
 }
 
 type handshakeResp struct {
@@ -218,19 +222,37 @@ func (d *driver) handshake(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *driver) attachToken(ctx context.Context, request *volumeRequest) (context.Context, string) {
+	var token string
+
+	// get token secret
+	tokenSecret, tokenSecretInName := d.GetTokenSecretFromString(request.Name)
+	if tokenSecretInName {
+		storedToken, err = d.secretsStore.GetToken()
+		if err != nil {
+			return ctx, ""
+		}
+
+	}
+
+	// get token
 	token, tokenInName := d.GetTokenFromString(request.Name)
 	if !tokenInName {
 		token = request.Opts[api.Token]
 	}
+
+	// token still empty, return no token
 	if len(token) == 0 {
 		return ctx, ""
 	}
 
+	// return token in ctx
 	md := metadata.New(map[string]string{
 		"authorization": "bearer " + token,
 	})
 	return metadata.NewOutgoingContext(ctx, md), token
 }
+
+func addContextAuth(token string)
 
 func (d *driver) attachTokenMount(ctx context.Context, request *mountRequest) (context.Context, string) {
 	token, _ := d.GetTokenFromString(request.Name)
