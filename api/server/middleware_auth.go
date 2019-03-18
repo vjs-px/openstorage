@@ -73,6 +73,15 @@ func (a *authMiddleware) createWithAuth(w http.ResponseWriter, r *http.Request, 
 		json.NewEncoder(w).Encode(&dcRes)
 		return
 	}
+	if secretName == "" || secretContext == "" {
+		errorMessage := "Access denied, no secret found in the annotations of the persistent volume claim"
+		a.log(locator.Name, fn).Error(errorMessage)
+		dcRes.VolumeResponse = &api.VolumeResponse{Error: errorMessage}
+		json.NewEncoder(w).Encode(&dcRes)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	token, err := a.provider.GetToken(secretName, secretContext)
 	if err != nil {
 		a.log(locator.Name, fn).WithError(err).Error("failed to get token")
@@ -206,12 +215,21 @@ func (a *authMiddleware) deleteWithAuth(w http.ResponseWriter, r *http.Request, 
 		json.NewEncoder(w).Encode(volumeResponse)
 		return
 	}
+	if secretName == "" || secretContext == "" {
+		errorMessage := "Internal error, no secret found in the annotations of the persistent volume claim"
+		a.log(locator.Name, fn).Error(errorMessage)
+		dcRes.VolumeResponse = &api.VolumeResponse{Error: errorMessage}
+		json.NewEncoder(w).Encode(&dcRes)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	token, err := a.provider.GetToken(secretName, secretContext)
 	if err != nil {
 		a.log(volumeID, fn).WithError(err).Error("failed to get token")
 		volumeResponse.Error = "failed to get token: " + err.Error()
 		json.NewEncoder(w).Encode(volumeResponse)
+
 		return
 	} else {
 		a.insertToken(r, token)
@@ -329,6 +347,7 @@ func parseSecretFromLabels(specLabels, locatorLabels map[string]string) (string,
 	if secretNamespace == "" {
 		secretNamespace = specLabels[secrets.SecretNamespaceKey]
 	}
+
 	return secretName, secretNamespace, nil
 }
 
