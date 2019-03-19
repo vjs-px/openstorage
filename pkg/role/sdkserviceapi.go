@@ -76,6 +76,7 @@ var (
 					"schedulepolicy",
 					"mountattach",
 					"migrate",
+					"storagepolicy",
 				},
 				Apis: []string{"*"},
 			},
