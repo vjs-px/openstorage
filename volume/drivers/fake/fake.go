@@ -82,9 +82,13 @@ func newFakeDriver(params map[string]string) (*driver, error) {
 
 	// This instance of the KVDB is Always in memory and created for each instance of the fake driver
 	// It is not necessary to run a single instance, and it helps tests create a new kvdb on each test
-	kv, err := kvdb.New(mem.Name, "fake_test", []string{}, nil, logrus.Panicf)
-	if err != nil {
-		return nil, err
+	var err error
+	kv := kvdb.Instance()
+	if kv == nil {
+		kv, err = kvdb.New(mem.Name, "fake_test", []string{}, nil, logrus.Panicf)
+		if err != nil {
+			return nil, err
+		}
 	}
 	inst := &driver{
 		IODriver:           volume.IONotSupported,
