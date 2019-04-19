@@ -198,6 +198,7 @@ func (vd *volAPI) cloudBackupEnumerate(w http.ResponseWriter, r *http.Request) {
 		ClusterId:    enumerateReq.ClusterID,
 		CredentialId: enumerateReq.CredentialUUID,
 		All:          enumerateReq.All,
+		Type:         api.CloudBackupStatusTypeToSdkCloudBackupStatusType(enumerateReq.Type),
 	})
 	if err != nil {
 		vd.sendError(method, "", w, err.Error(), http.StatusInternalServerError)

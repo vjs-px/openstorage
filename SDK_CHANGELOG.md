@@ -2,6 +2,10 @@
 
 ## Releases
 
+### v0.52.0 - Tech Preview (4/18/2019)
+
+* Added Type field to CloudBackupEnumerate request
+
 ### v0.51.0 - Tech Preview (4/11/2019)
 
 * Added VolumeInspectOptions to OpenStorageVolume.Inspect

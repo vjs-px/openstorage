@@ -343,6 +343,10 @@ type CloudBackupGenericRequest struct {
 	CredentialUUID string
 	// All if set to true, backups for all clusters in the cloud are processed
 	All bool
+	// Type indicates enumerate based on status type. Default is "done"(if none
+	// specified). And can be set "Failed", "Stopped", "Aborted", "Active", "Invalid"
+	// Invalid will include Failed, Stopped and Aborted
+	Type CloudBackupStatusType
 }
 
 type CloudBackupInfo struct {
@@ -420,6 +424,9 @@ const (
 	CloudBackupStatusActive     = CloudBackupStatusType("Active")
 	CloudBackupStatusQueued     = CloudBackupStatusType("Queued")
 	CloudBackupStatusFailed     = CloudBackupStatusType("Failed")
+	// Invalid includes Failed, Stopped, and Aborted used only
+	// while enumerating
+	CloudBackupStatusInvalid = CloudBackupStatusType("Invalid")
 )
 
 const (
@@ -854,6 +861,8 @@ func CloudBackupStatusTypeToSdkCloudBackupStatusType(
 		return SdkCloudBackupStatusType_SdkCloudBackupStatusTypeFailed
 	case CloudBackupStatusQueued:
 		return SdkCloudBackupStatusType_SdkCloudBackupStatusTypeQueued
+	case CloudBackupStatusInvalid:
+		return SdkCloudBackupStatusType_SdkCloudBackupStatusTypeInvalid
 	default:
 		return SdkCloudBackupStatusType_SdkCloudBackupStatusTypeUnknown
 	}
@@ -879,6 +888,8 @@ func SdkCloudBackupStatusTypeToCloudBackupStatusString(
 		return string(CloudBackupStatusFailed)
 	case SdkCloudBackupStatusType_SdkCloudBackupStatusTypeQueued:
 		return string(CloudBackupStatusQueued)
+	case SdkCloudBackupStatusType_SdkCloudBackupStatusTypeInvalid:
+		return string(CloudBackupStatusInvalid)
 	default:
 		return string(CloudBackupStatusFailed)
 	}

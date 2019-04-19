@@ -218,15 +218,19 @@ func (s *CloudBackupServer) EnumerateWithFilters(
 			return nil, err
 		}
 	}
-
-	r, err := s.driver(ctx).CloudBackupEnumerate(&api.CloudBackupEnumerateRequest{
+	enumerateReq := &api.CloudBackupEnumerateRequest{
 		CloudBackupGenericRequest: api.CloudBackupGenericRequest{
 			SrcVolumeID:    req.GetSrcVolumeId(),
 			ClusterID:      req.GetClusterId(),
 			CredentialUUID: credId,
 			All:            req.GetAll(),
 		},
-	})
+	}
+	if req.GetType() != api.SdkCloudBackupStatusType_SdkCloudBackupStatusTypeUnknown {
+		enumerateReq.Type = api.CloudBackupStatusType(api.SdkCloudBackupStatusTypeToCloudBackupStatusString(req.GetType()))
+	}
+
+	r, err := s.driver(ctx).CloudBackupEnumerate(enumerateReq)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to enumerate backups: %v", err)
 	}

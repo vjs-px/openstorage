@@ -1023,6 +1023,9 @@
           "src_volume_id": {
             "description": "(optional) Source id of the volume for the request.",
             "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/apiSdkCloudBackupStatusType"
           }
         },
         "title": "Defines a request to list the backups stored by a cloud provider.\nThe following combinations can be used to get cloud backup information:",
@@ -1349,7 +1352,7 @@
       },
       "apiSdkCloudBackupStatusType": {
         "default": "SdkCloudBackupStatusTypeUnknown",
-        "description": "- SdkCloudBackupStatusTypeUnknown: Unkonwn\n - SdkCloudBackupStatusTypeNotStarted: Not started\n - SdkCloudBackupStatusTypeDone: Done\n - SdkCloudBackupStatusTypeAborted: Aborted\n - SdkCloudBackupStatusTypePaused: Paused\n - SdkCloudBackupStatusTypeStopped: Stopped\n - SdkCloudBackupStatusTypeActive: Active\n - SdkCloudBackupStatusTypeFailed: Failed\n - SdkCloudBackupStatusTypeQueued: Queued",
+        "description": "- SdkCloudBackupStatusTypeUnknown: Unkonwn\n - SdkCloudBackupStatusTypeNotStarted: Not started\n - SdkCloudBackupStatusTypeDone: Done\n - SdkCloudBackupStatusTypeAborted: Aborted\n - SdkCloudBackupStatusTypePaused: Paused\n - SdkCloudBackupStatusTypeStopped: Stopped\n - SdkCloudBackupStatusTypeActive: Active\n - SdkCloudBackupStatusTypeFailed: Failed\n - SdkCloudBackupStatusTypeQueued: Queued\n - SdkCloudBackupStatusTypeInvalid: Invalid",
         "enum": [
           "SdkCloudBackupStatusTypeUnknown",
           "SdkCloudBackupStatusTypeNotStarted",
@@ -1359,7 +1362,8 @@
           "SdkCloudBackupStatusTypeStopped",
           "SdkCloudBackupStatusTypeActive",
           "SdkCloudBackupStatusTypeFailed",
-          "SdkCloudBackupStatusTypeQueued"
+          "SdkCloudBackupStatusTypeQueued",
+          "SdkCloudBackupStatusTypeInvalid"
         ],
         "title": "CloudBackup status types",
         "type": "string"
@@ -3553,7 +3557,7 @@
   },
   "info": {
     "title": "OpenStorage SDK",
-    "version": "0.51.0"
+    "version": "0.52.0"
   },
   "openapi": "3.0.0",
   "paths": {
