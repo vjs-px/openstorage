@@ -115,6 +115,15 @@
         "title": "- UNKNOWN: Unknown service\n - CLUSTER: Cluster management\n - CLOUD_BACKUP: Cloud backup of volumes management\n - CREDENTIALS: Credentials management\n - NODE: Node management\n - OBJECT_STORAGE: Object Storage management\n - SCHEDULE_POLICY: Schedule policy management\n - VOLUME: Volume management\n - ALERTS: Alert enumeration\n - MOUNT_ATTACH: Mount/Attach Support\n - ROLE: Role service\n - CLUSTER_PAIR: Cluster Pair service\n - MIGRATE: Migrate service\n - STORAGE_POLICY: StoragePolicy Service",
         "type": "string"
       },
+      "SdkStoragePoolOperationStatus": {
+        "default": "IN_PROGRESS",
+        "enum": [
+          "IN_PROGRESS",
+          "SUCCESSFUL",
+          "FAILED"
+        ],
+        "type": "string"
+      },
       "VolumeSpecPolicyPolicyOp": {
         "default": "Equal",
         "description": "- Equal: Policy will make sure the value must be equal\n - Minimum: Policy will make sure the requested value must be greater than or equal\n - Maximum: Policy will make sure the requested value must be less than or equal",
@@ -3004,10 +3013,6 @@
             "title": "TotalSize of the pool",
             "type": "string"
           },
-          "UUID": {
-            "title": "UUID is the unique identifier for a storage pool",
-            "type": "string"
-          },
           "Used": {
             "format": "uint64",
             "title": "Used size of the pool",
@@ -3025,6 +3030,10 @@
           },
           "status": {
             "$ref": "#/components/schemas/apiStoragePoolStatus"
+          },
+          "uuid": {
+            "title": "UUID is the unique identifier for a storage pool",
+            "type": "string"
           }
         },
         "title": "StoragePool groups different storage devices based on their CosType",
@@ -3039,6 +3048,9 @@
           "name": {
             "title": "Operation is the name of the operation",
             "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SdkStoragePoolOperationStatus"
           }
         },
         "title": "StoragePoolOperation defines an operation being performed on a storage pool",
@@ -3068,11 +3080,11 @@
       },
       "apiStoragePoolStatus": {
         "properties": {
-          "active_operations": {
+          "operations": {
             "items": {
               "$ref": "#/components/schemas/apiStoragePoolOperation"
             },
-            "title": "ActiveOperations is a list of active operations being performed on a storage pool",
+            "title": "Operations is a list of operations being performed on a storage pool",
             "type": "array"
           },
           "size": {
