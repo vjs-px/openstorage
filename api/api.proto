@@ -234,7 +234,34 @@ message StoragePool {
   map<string, string> labels = 9;
   // UUID is the unique identifier for a storage pool
   string UUID = 10;
+  // Spec is the specification for the storage pool
+  StoragePoolSpec spec = 11;
+  // Status is the current status of the storage pool
+  StoragePoolStatus status = 12;
 }
+
+// StoragePoolSpec defines the specification of a storage pool
+message StoragePoolSpec {
+  // Size is the desired size of the storage pool
+  uint64 size = 1;
+}
+
+// StoragePoolStatus defines the current status of a storage pool
+message StoragePoolStatus {
+  // Size is the current size of the storage pool
+  uint64 size = 1;
+  // ActiveOperations is a list of active operations being performed on a storage pool
+  repeated StoragePoolOperation active_operations = 2;
+}
+
+// StoragePoolOperation defines an operation being performed on a storage pool
+message StoragePoolOperation {
+  // Operation is the name of the operation
+  string name = 1;
+  // Msg is a user friendly message for the operation
+  string msg = 2;
+}
+
 
 // VolumeLocator is a structure that is attached to a volume
 // and is used to carry opaque metadata.
@@ -2735,8 +2762,14 @@ message SdkNodeInspectRequest {
 message SdkStoragePoolResizeRequest {
   // UUID of the storage pool to inspect
   string uuid = 1;
-  // Size is the new desired size of the storage pool
-  uint64 size = 2;
+  // ResizeFactor is the option to indiciate if you would like to resize the pool
+  // by a fixed size or by a percentage of current size
+  oneof resize_factor {
+    // Size is the new desired size of the storage pool
+    uint64 size = 200;
+    // Size is the new desired size of the storage pool
+    uint64 percentage = 201;
+  }
   // OperationType is the operation that's used to resize the storage pool (optional)
   StoragePoolResizeOperationType operation_type = 3;
 }
@@ -2751,10 +2784,18 @@ enum StoragePoolResizeOperationType {
   RESIZE_DISK = 2;
 }
 
+/*enum SdkStoragePoolResizeStatus {
+  RESIZE_IN_PROGRESS = 0;
+  RESIZE_SUCCESSFULL = 1;
+  RESIZE_FAILED = 2;
+}*/
+
 // Defines a response when resizing a storage pool
 message SdkStoragePoolResizeResponse {
-  // Size is the updated size of the storage pool
-  int64 size = 1;
+  /*// Status is the status of the storage pool resize operation
+  status SdkStoragePoolResizeStatus = 1;
+  // Msg is an optional user friendly message to accompany the above status
+  msg string = 2;*/
 }
 
 // Defines a response when inspecting a node

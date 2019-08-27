@@ -2274,13 +2274,6 @@
         "type": "object"
       },
       "apiSdkStoragePoolResizeResponse": {
-        "properties": {
-          "size": {
-            "format": "int64",
-            "title": "Size is the updated size of the storage pool",
-            "type": "string"
-          }
-        },
         "title": "Defines a response when resizing a storage pool",
         "type": "object"
       },
@@ -3026,9 +3019,29 @@
             },
             "title": "Labels is a list of user defined name-value pairs",
             "type": "object"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/apiStoragePoolSpec"
+          },
+          "status": {
+            "$ref": "#/components/schemas/apiStoragePoolStatus"
           }
         },
         "title": "StoragePool groups different storage devices based on their CosType",
+        "type": "object"
+      },
+      "apiStoragePoolOperation": {
+        "properties": {
+          "msg": {
+            "title": "Msg is a user friendly message for the operation",
+            "type": "string"
+          },
+          "name": {
+            "title": "Operation is the name of the operation",
+            "type": "string"
+          }
+        },
+        "title": "StoragePoolOperation defines an operation being performed on a storage pool",
         "type": "object"
       },
       "apiStoragePoolResizeOperationType": {
@@ -3041,6 +3054,35 @@
         ],
         "title": "Defines the operation types available to resize a storage pool",
         "type": "string"
+      },
+      "apiStoragePoolSpec": {
+        "properties": {
+          "size": {
+            "format": "uint64",
+            "title": "Size is the desired size of the storage pool",
+            "type": "string"
+          }
+        },
+        "title": "StoragePoolSpec defines the specification of a storage pool",
+        "type": "object"
+      },
+      "apiStoragePoolStatus": {
+        "properties": {
+          "active_operations": {
+            "items": {
+              "$ref": "#/components/schemas/apiStoragePoolOperation"
+            },
+            "title": "ActiveOperations is a list of active operations being performed on a storage pool",
+            "type": "array"
+          },
+          "size": {
+            "format": "uint64",
+            "title": "Size is the current size of the storage pool",
+            "type": "string"
+          }
+        },
+        "title": "StoragePoolStatus defines the current status of a storage pool",
+        "type": "object"
       },
       "apiStorageResource": {
         "description": "StorageResource groups properties of a storage device.",
