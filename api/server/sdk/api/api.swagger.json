@@ -116,8 +116,9 @@
         "type": "string"
       },
       "SdkStoragePoolOperationStatus": {
-        "default": "OPERATION_IN_PROGRESS",
+        "default": "OPERATION_PENDING",
         "enum": [
+          "OPERATION_PENDING",
           "OPERATION_IN_PROGRESS",
           "OPERATION_SUCCESSFUL",
           "OPERATION_FAILED"
@@ -3057,6 +3058,13 @@
           "msg": {
             "title": "Msg is a user friendly message for the operation",
             "type": "string"
+          },
+          "params": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Params for the parameters for the operation",
+            "type": "object"
           },
           "status": {
             "$ref": "#/components/schemas/SdkStoragePoolOperationStatus"
