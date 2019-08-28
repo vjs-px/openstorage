@@ -3100,12 +3100,8 @@
       },
       "apiStoragePoolStatus": {
         "properties": {
-          "operations": {
-            "items": {
-              "$ref": "#/components/schemas/apiStoragePoolOperation"
-            },
-            "title": "Operations is a list of operations being performed on a storage pool",
-            "type": "array"
+          "last_operation": {
+            "$ref": "#/components/schemas/apiStoragePoolOperation"
           },
           "size": {
             "format": "uint64",
