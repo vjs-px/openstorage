@@ -260,8 +260,10 @@ message StoragePoolOperation {
   SdkStoragePool.OperationType type = 1;
   // Msg is a user friendly message for the operation
   string msg = 2;
+  // Params for the parameters for the operation
+  map<string, string> params = 3;
   // Status is the status of the operation
-  SdkStoragePool.OperationStatus status = 3;
+  SdkStoragePool.OperationStatus status = 4;
 }
 
 
@@ -2788,9 +2790,10 @@ enum StoragePoolResizeOperationType {
 
 message SdkStoragePool {
   enum OperationStatus {
-    OPERATION_IN_PROGRESS = 0;
-    OPERATION_SUCCESSFUL = 1;
-    OPERATION_FAILED = 2;
+    OPERATION_PENDING = 0;
+    OPERATION_IN_PROGRESS = 1;
+    OPERATION_SUCCESSFUL = 2;
+    OPERATION_FAILED = 3;
   }
 
   enum OperationType {
