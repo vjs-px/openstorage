@@ -1,6 +1,10 @@
 package errors
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/libopenstorage/openstorage/api"
+)
 
 // ErrNotFound error type for objects not found
 type ErrNotFound struct {
@@ -31,4 +35,24 @@ type ErrNotSupported struct{}
 
 func (e *ErrNotSupported) Error() string {
 	return fmt.Sprintf("Not Supported")
+}
+
+// ErrStoragePoolExpandInProgress error when an expand is already in progress
+// on a storage pool
+type ErrStoragePoolResizeInProgress struct {
+	// Pool is the affected pool
+	Pool *api.StoragePool
+}
+
+func (e *ErrStoragePoolResizeInProgress) Error() string {
+	errMsg := fmt.Sprintf("a resize for pool: %s is already in progress.", e.Pool.GetUuid())
+	if e.Pool.Status != nil && len(e.Pool.Status.Operations) > 0 {
+		for _, op := range e.Pool.Status.Operations {
+			if op.Type == api.SdkStoragePool_OPERATION_RESIZE {
+				errMsg = fmt.Sprintf("%s\n %s", errMsg, op.Msg)
+			}
+		}
+	}
+
+	return errMsg
 }
