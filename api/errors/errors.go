@@ -46,8 +46,8 @@ type ErrStoragePoolResizeInProgress struct {
 
 func (e *ErrStoragePoolResizeInProgress) Error() string {
 	errMsg := fmt.Sprintf("a resize for pool: %s is already in progress.", e.Pool.GetUuid())
-	if e.Pool.Status != nil && e.Pool.Status.LastOperation != nil {
-		op := e.Pool.Status.LastOperation
+	if e.Pool.LastOperation != nil {
+		op := e.Pool.LastOperation
 		if op.Type == api.SdkStoragePool_OPERATION_RESIZE {
 			errMsg = fmt.Sprintf("%s %s %s", errMsg, op.Msg, op.Params)
 		}

@@ -234,24 +234,8 @@ message StoragePool {
   map<string, string> labels = 9;
   // UUID is the unique identifier for a storage pool
   string uuid = 10;
-  // Spec is the specification for the storage pool
-  StoragePoolSpec spec = 11;
-  // Status is the current status of the storage pool
-  StoragePoolStatus status = 12;
-}
-
-// StoragePoolSpec defines the specification of a storage pool
-message StoragePoolSpec {
-  // Size is the desired size of the storage pool
-  uint64 size = 1;
-}
-
-// StoragePoolStatus defines the current status of a storage pool
-message StoragePoolStatus {
-  // Size is the current size of the storage pool
-  uint64 size = 1;
   // LastOperation is the most recent operation being performed on a storage pool
-  StoragePoolOperation last_operation = 2;
+  StoragePoolOperation last_operation = 11;
 }
 
 // StoragePoolOperation defines an operation being performed on a storage pool
