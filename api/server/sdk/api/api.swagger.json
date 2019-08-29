@@ -3039,11 +3039,8 @@
             "title": "Labels is a list of user defined name-value pairs",
             "type": "object"
           },
-          "spec": {
-            "$ref": "#/components/schemas/apiStoragePoolSpec"
-          },
-          "status": {
-            "$ref": "#/components/schemas/apiStoragePoolStatus"
+          "last_operation": {
+            "$ref": "#/components/schemas/apiStoragePoolOperation"
           },
           "uuid": {
             "title": "UUID is the unique identifier for a storage pool",
@@ -3086,31 +3083,6 @@
         ],
         "title": "Defines the operation types available to resize a storage pool",
         "type": "string"
-      },
-      "apiStoragePoolSpec": {
-        "properties": {
-          "size": {
-            "format": "uint64",
-            "title": "Size is the desired size of the storage pool",
-            "type": "string"
-          }
-        },
-        "title": "StoragePoolSpec defines the specification of a storage pool",
-        "type": "object"
-      },
-      "apiStoragePoolStatus": {
-        "properties": {
-          "last_operation": {
-            "$ref": "#/components/schemas/apiStoragePoolOperation"
-          },
-          "size": {
-            "format": "uint64",
-            "title": "Size is the current size of the storage pool",
-            "type": "string"
-          }
-        },
-        "title": "StoragePoolStatus defines the current status of a storage pool",
-        "type": "object"
       },
       "apiStorageResource": {
         "description": "StorageResource groups properties of a storage device.",
