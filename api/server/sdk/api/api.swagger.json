@@ -2291,12 +2291,6 @@
         "type": "string"
       },
       "apiSdkStoragePoolResizeResponse": {
-        "properties": {
-          "new_size_in_bytes": {
-            "format": "uint64",
-            "type": "string"
-          }
-        },
         "title": "Defines a response when resizing a storage pool",
         "type": "object"
       },
