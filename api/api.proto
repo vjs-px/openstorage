@@ -2786,11 +2786,11 @@ message SdkStoragePool {
   // Defines the operation types available to resize a storage pool
   enum ResizeOperationType {
     // Automatically pick the optimum resize operation type
-   AUTO = 0;
+   RESIZE_TYPE_AUTO = 0;
    // Add a new drive to resize the pool
-   ADD_DISK = 1;
+   RESIZE_TYPE_ADD_DISK = 1;
    // Resize existing drives to resize the pool
-   RESIZE_DISK = 2;
+   RESIZE_TYPE_RESIZE_DISK = 2;
   }
 }
 

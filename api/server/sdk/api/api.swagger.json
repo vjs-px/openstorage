@@ -128,12 +128,12 @@
         "type": "string"
       },
       "SdkStoragePoolResizeOperationType": {
-        "default": "AUTO",
-        "description": "- AUTO: Automatically pick the optimum resize operation type\n - ADD_DISK: Add a new drive to resize the pool\n - RESIZE_DISK: Resize existing drives to resize the pool",
+        "default": "RESIZE_TYPE_AUTO",
+        "description": "- RESIZE_TYPE_AUTO: Automatically pick the optimum resize operation type\n - RESIZE_TYPE_ADD_DISK: Add a new drive to resize the pool\n - RESIZE_TYPE_RESIZE_DISK: Resize existing drives to resize the pool",
         "enum": [
-          "AUTO",
-          "ADD_DISK",
-          "RESIZE_DISK"
+          "RESIZE_TYPE_AUTO",
+          "RESIZE_TYPE_ADD_DISK",
+          "RESIZE_TYPE_RESIZE_DISK"
         ],
         "title": "Defines the operation types available to resize a storage pool",
         "type": "string"
