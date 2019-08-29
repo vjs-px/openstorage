@@ -2759,29 +2759,38 @@ message SdkStoragePoolResizeRequest {
     uint64 percentage = 201;
   }
   // OperationType is the operation that's used to resize the storage pool (optional)
-  StoragePoolResizeOperationType operation_type = 3;
+  SdkStoragePool.ResizeOperationType operation_type = 3;
 }
 
-// Defines the operation types available to resize a storage pool
-enum StoragePoolResizeOperationType {
-  // Automatically pick the optimum operation type
-  AUTO = 0;
-  // Add a new drive to resize the pool
-  ADD_DISK = 1;
-  // Resize existing drives to resize the pool
-  RESIZE_DISK = 2;
-}
+
 
 message SdkStoragePool {
+  // OperationStatus captures the various statuses of a storage pool operation
   enum OperationStatus {
+    // Operation pending
     OPERATION_PENDING = 0;
+    // Operation is in progress
     OPERATION_IN_PROGRESS = 1;
+    // Operation is successful
     OPERATION_SUCCESSFUL = 2;
+    // Operation failed
     OPERATION_FAILED = 3;
   }
 
+  // OperationType defines the various operations that are performed on a storage pool
   enum OperationType {
+    // Resize operation
     OPERATION_RESIZE = 0;
+  }
+
+  // Defines the operation types available to resize a storage pool
+  enum ResizeOperationType {
+    // Automatically pick the optimum resize operation type
+   AUTO = 0;
+   // Add a new drive to resize the pool
+   ADD_DISK = 1;
+   // Resize existing drives to resize the pool
+   RESIZE_DISK = 2;
   }
 }
 
