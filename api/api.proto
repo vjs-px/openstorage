@@ -2787,7 +2787,6 @@ message SdkStoragePool {
 
 // Defines a response when resizing a storage pool
 message SdkStoragePoolResizeResponse {
-  uint64 new_size_in_bytes = 1;
 }
 
 // Defines a response when inspecting a node
