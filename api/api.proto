@@ -482,6 +482,8 @@ message VolumeSpecPolicy {
 // coded - for clustered storage arrays
 message ReplicaSet {
   repeated string nodes = 1;
+  // Unique ID of the storage pool for this replica set
+  repeated string pool_uuids = 2;
 }
 
 // RuntimeStateMap is a list of name value mapping of driver specific runtime

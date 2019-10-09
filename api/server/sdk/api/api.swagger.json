@@ -708,6 +708,13 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "pool_uuids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unique ID of the storage pool for this replica set",
+            "type": "array"
           }
         },
         "title": "ReplicaSet set of machine IDs (nodes) to which part of this volume is erasure\ncoded - for clustered storage arrays",
